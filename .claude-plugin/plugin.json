@@ -1,0 +1,21 @@
+{
+  "name": "janitor",
+  "description": "Two slash-command skills that diagnose and clean up your machine (macOS and Windows) and your Claude Code working directory. Reversible, permission-gated, no telemetry.",
+  "version": "0.1.0",
+  "author": {
+    "name": "ArshiaEcho",
+    "url": "https://github.com/ArshiaEcho/janitor"
+  },
+  "license": "MIT",
+  "keywords": [
+    "cleanup",
+    "performance",
+    "mac",
+    "macos",
+    "windows",
+    "claude-code",
+    "maintenance",
+    "diagnostics"
+  ],
+  "homepage": "https://github.com/ArshiaEcho/janitor"
+}

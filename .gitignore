@@ -1,0 +1,41 @@
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Node / Python / general dev cruft
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+build/
+
+# Logs and tmp
+*.log
+*.tmp
+tmp/
+temp/
+
+# Local dev state
+.env
+.env.local
+
+# Local-only push kit (never committed — used once by a fresh Claude Code session)
+PUSH-INSTRUCTIONS.md
+PASTE-INTO-FRESH-SESSION.md
+START-HERE.md
+
+# Meta: a janitor repo that commits junk to itself would be embarrassing

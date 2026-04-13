@@ -1,0 +1,349 @@
+---
+name: janitor-claude
+description: Audit and clean up a Claude Code working directory or Obsidian vault. Use this skill when the user asks to "clean up my session", "clean this directory", "tidy this up", "audit my CLAUDE.md", "is my CLAUDE.md stale", "scaffold a CLAUDE.md", "find broken wiki-links", "find dead files", "find orphaned notes", "what's wasting tokens in this repo", "what's slowing Claude down in here", "clean up this vault", "find cruft", "find .DS_Store files", "find stale branches", or "/janitor-claude". Also trigger for vague complaints like "this directory is a mess", "my vault is full of broken links", "Claude keeps re-reading the same files", "my CLAUDE.md is out of date". Every mutation requires explicit user confirmation. Read-only diagnostics by default. Never rewrites files, never runs destructive git, never touches .git/ internals. No telemetry, no network calls.
+---
+
+# janitor-claude
+
+A read-first audit of the current working directory. Finds clutter, broken links, stale `CLAUDE.md` facts, and token-wasting patterns — then asks the user per-fix before doing anything.
+
+## How to use this
+
+You don't need to remember any commands. The skill triggers automatically when you describe your problem:
+
+> "clean up this directory"
+> "audit my CLAUDE.md"
+> "find broken wiki-links in this vault"
+> "Claude keeps re-reading the same files, what's going on"
+> "/janitor-claude"
+
+Claude walks the directory read-only, identifies 3-5 specific villains, shows you what it found, and asks permission per-fix. Nothing is mutated without explicit consent. Everything is reversible (files go to Trash, never to `rm -rf`).
+
+## Philosophy
+
+A messy Claude Code working directory has the same underlying pattern as a slow Mac: **3-5 specific villains, not some general decay**. The difference is that on a working directory, every mutation risks destroying in-progress work. So the defaults are much stricter:
+
+- **Read-only by default.** Diagnostics walk the filesystem and git state without writing anything.
+- **Only machine-generated cruft can be batch-cleaned.** `.DS_Store`, `__pycache__`, broken symlinks — these have no information content. Everything else requires a per-item ask.
+- **Never rewrites user-authored files.** Not `CLAUDE.md`, not a markdown note, not a config file. Never wholesale, never silently.
+- **Never runs destructive git.** No `git add`, `git rm`, `git commit`, `git push`, `git reset`, `git branch -D`, `git clean`. Read-only git only.
+
+If the janitor-device philosophy is "the user's machine has villains and we can disable them together," the janitor-claude philosophy is "the user's working directory has clutter and we can catalog it together, then let them decide."
+
+---
+
+## The workflow, in five phases
+
+1. **Diagnose** — walk the directory read-only, check git state, audit markdown, inspect CLAUDE.md, measure file sizes.
+2. **Identify villains** — match findings against the session villain catalog.
+3. **Present and ask** — show a structured report with specific counts and file paths, get per-fix permission.
+4. **Fix** — only after explicit confirmation. Move-to-Trash for files, show diffs for any CLAUDE.md edits, never auto-rewrite a wiki-link.
+5. **Verify and close** — re-walk, show a before/after table of counts, close with a custom analogy.
+
+Don't skip phases. The user needs to see what's wrong before they can say yes to fixing it.
+
+---
+
+## Phase 1 — Diagnose (read-only)
+
+Run all of these **in parallel** (multiple independent bash calls in one message). All are strictly read-only.
+
+### Directory shape and obvious cruft
+
+```bash
+# What kind of directory are we in?
+pwd
+ls -la
+
+# Git state (read-only only)
+git status --short 2>/dev/null | head -30
+git log --oneline -10 2>/dev/null
+git branch -vv 2>/dev/null | head -20
+git worktree list 2>/dev/null
+
+# Obvious cruft counts (excluding known big directories)
+find . -name ".DS_Store" -type f \
+  ! -path "./node_modules/*" ! -path "./.git/*" 2>/dev/null | wc -l
+
+find . -type d -name "__pycache__" \
+  ! -path "./node_modules/*" ! -path "./.git/*" 2>/dev/null | head -20
+
+find . -type f -name "*.pyc" \
+  ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.venv/*" 2>/dev/null | wc -l
+
+# Dead symlinks
+find . -type l ! -exec test -e {} \; -print 2>/dev/null | head -20
+
+# Large files sitting in the read path
+find . -type f -size +500k \
+  ! -path "./node_modules/*" \
+  ! -path "./.git/*" \
+  ! -path "./.venv/*" \
+  ! -path "./dist/*" \
+  ! -path "./build/*" 2>/dev/null | head -20
+```
+
+### CLAUDE.md state
+
+```bash
+# Does it exist?
+test -f CLAUDE.md && wc -l CLAUDE.md || echo "CLAUDE.md: missing"
+
+# Is it huge?
+test -f CLAUDE.md && ls -lh CLAUDE.md
+
+# Sub-repos might have their own CLAUDE.md
+find . -maxdepth 3 -name "CLAUDE.md" -type f 2>/dev/null
+```
+
+### Project type fingerprint (for CLAUDE.md auto-detection later)
+
+```bash
+test -f package.json && echo "node" && cat package.json | head -40
+test -f pyproject.toml && echo "python"
+test -f Cargo.toml && echo "rust"
+test -f go.mod && echo "go"
+test -f Gemfile && echo "ruby"
+test -f .obsidian && echo "obsidian-vault" || test -d .obsidian && echo "obsidian-vault"
+```
+
+### Top-level "looks like a scratchpad" files
+
+```bash
+find . -maxdepth 2 -type f \
+  \( -name "scratch*" -o -name "untitled*" -o -name "temp*" \
+     -o -name "tmp*" -o -name "asdf*" -o -name "test.py" \
+     -o -name "test.js" -o -name "foo*" -o -name "bar*" \) \
+  ! -path "./node_modules/*" ! -path "./.git/*" 2>/dev/null
+```
+
+### Markdown audit (vault or docs)
+
+If there are more than a handful of `.md` files:
+
+```bash
+find . -name "*.md" -type f \
+  ! -path "./node_modules/*" ! -path "./.git/*" 2>/dev/null | wc -l
+```
+
+If the count is non-trivial, load `references/markdown-audit-patterns.md` and run the broken-link audit. **Do not run the audit unless the user has a markdown-heavy directory** (docs folder, notes folder, Obsidian vault). Running it on a pure code repo is a waste.
+
+### Full villain catalog pointer
+
+For the ranked villain catalog and all detection rules, load `references/session-villains.md`. That file covers:
+- Tier 1: `.DS_Store`, Python cruft, dead symlinks, missing `CLAUDE.md`
+- Tier 2: orphaned scratchpads, oversized files, broken wiki-links, stale `CLAUDE.md`, tracked build artifacts, stale git worktrees
+- Tier 3: orphaned markdown, stale front-matter dates, stale branches, suspected secrets, oversized `.git/`
+
+---
+
+## Phase 2 — Identify villains
+
+Match the diagnostic output against `references/session-villains.md`. Pick the 3-5 most impactful findings. Prioritization order:
+
+1. **Missing or obviously stale `CLAUDE.md`** — biggest per-session token cost.
+2. **Oversized files in the read path** — next biggest cost.
+3. **Broken wiki-links** (if this is a vault) — affects the user's navigation.
+4. **Build artifacts tracked in git** — low per-session cost, high long-term risk.
+5. **Orphaned scratchpads and cruft** — smallest impact but highest "feels cleaner" return.
+
+Ignore findings with no recommendation attached. A clean directory should produce a short report, not a padded one.
+
+---
+
+## Phase 3 — Present findings and ask permission
+
+Present a **structured report** with specific counts and file paths. Every line must cite something real from this directory. Generic advice is banned.
+
+```
+## What I found in this directory
+
+1. **CLAUDE.md is missing** — 0 tokens of repo-specific context loaded per session.
+2. **12 `.DS_Store` files** — scattered across the tree, not in `.gitignore`.
+3. **3 orphaned scratchpads** — `scratch.py`, `test.js`, `asdf.md`, all last modified 40+ days ago.
+4. **`data/transcript.json` is 2.1 MB** — in the repo root, gets read on most sessions.
+5. **7 broken wiki-links** — across 4 files in `areas/`.
+
+## The plan
+
+✅ Auto-fixable after one confirmation:
+- Move all 12 `.DS_Store` files to Trash
+- Add `.DS_Store` to `.gitignore`
+
+🔧 Needs per-item decision from you:
+- 3 orphaned scratchpads (I'll list them with first-lines)
+- 7 broken wiki-links (I'll show each with a suggested fix)
+- `data/transcript.json` — move to `archive/`, gitignore, or leave alone?
+
+📄 Optional:
+- Scaffold a `CLAUDE.md` via a 5-question protocol (takes ~1 minute)
+
+Reply with "go ahead" for the auto-fixable items, or tell me which items to work through first.
+```
+
+**Always wait for explicit confirmation before any mutation.** Never take "sure" or "okay" as a yes for a destructive action. Re-ask if the response is ambiguous.
+
+The user may also say "just the `.DS_Store` cleanup" — respect that scope exactly. Don't sneak in other fixes because they're "quick."
+
+---
+
+## Phase 4 — Fix
+
+### Core rules (non-negotiable)
+
+1. **All deletions go through `~/.Trash/` (macOS) or Recycle Bin (Windows).** Never `rm`, never `rm -rf`, never `Remove-Item -Force -Recurse`. The user must be able to recover.
+2. **CLAUDE.md edits are diff-gated.** Show the unified diff, wait for explicit "apply" or "write it," only then write. Never wholesale-replace.
+3. **Wiki-link fixes are per-link.** Even if the user says "fix the broken ones," show each one with the suggested fix and get a per-link confirmation. See `references/markdown-audit-patterns.md` for the full rule set.
+4. **Git is read-only.** No `git add`, `git rm`, `git commit`, `git push`, `git reset`, `git branch -D`, `git clean`, `git stash`. If a recommendation involves a git mutation, hand the user the exact command and let them run it themselves.
+5. **Never walk into `.git/` for any reason.** The internals are not janitor's concern.
+
+### Specific fix patterns
+
+**Batching `.DS_Store` cleanup** (auto-fixable after one confirmation):
+
+```bash
+# macOS
+find . -name ".DS_Store" -type f \
+  ! -path "./node_modules/*" ! -path "./.git/*" \
+  -exec mv {} ~/.Trash/ \;
+
+# Add to .gitignore if missing
+grep -qxF ".DS_Store" .gitignore 2>/dev/null || echo ".DS_Store" >> .gitignore
+```
+
+**Python cruft cleanup** (auto-fixable after one confirmation):
+
+```bash
+# Move __pycache__ dirs to Trash
+find . -type d -name "__pycache__" \
+  ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.venv/*" \
+  -exec mv {} ~/.Trash/ \; 2>/dev/null
+
+# .pyc files individually
+find . -type f -name "*.pyc" \
+  ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.venv/*" \
+  -exec mv {} ~/.Trash/ \;
+```
+
+**Orphaned scratchpad handling** (per-item):
+
+For each suspected scratchpad, show the user:
+- Path
+- Last modified date
+- File size
+- First 5 lines of content (so they remember what's in it)
+
+Then ask per-file: keep, trash, or skip.
+
+**Oversized file handling** (per-item, never auto):
+
+For each file > 500 KB in the read path, offer three options:
+1. Move to `archive/` (still in repo but out of read path)
+2. Add to `.gitignore` (remove from future reads)
+3. Add to a `CLAUDE.md` "don't read" list
+4. Leave alone
+
+Never pick for the user. Never move to Trash — these files are probably legitimate.
+
+**CLAUDE.md scaffold / audit** — load `references/claude-md-scaffold.md` for the full 5-question protocol and the staleness audit flow. The critical rules in that file:
+- **Never overwrite an existing `CLAUDE.md`.** If one exists, switch to staleness-audit mode.
+- **Every write requires an explicit "write it" / "apply" response.** Ambiguous answers get re-asked.
+- **Never generate over 100 lines.** A huge `CLAUDE.md` is itself a token-waste problem.
+
+**Wiki-link fixes** — load `references/markdown-audit-patterns.md` for the full resolution rules. The critical rules in that file:
+- **Never auto-rewrite.** Every broken link is a three-option menu (ignore / fix to suggested / remove).
+- **Fuzzy match threshold: 85%.** Only suggest if there's exactly one candidate above threshold.
+- **Forward-linking is legitimate.** A link to a page that doesn't exist yet is often intentional — don't treat it as a bug.
+
+**Suspected secrets** — report `file:line` only, **never** print the matched substring. Never edit the file to remove the secret (it's already in git history; editing the current file does nothing useful). Recommend `gitleaks` and credential rotation.
+
+---
+
+## Phase 5 — Verify and present
+
+### Re-run the diagnostics
+
+Run the same core commands from Phase 1 that correspond to things you actually changed. Not every metric — only the ones that should have moved.
+
+### The before/after table
+
+Include only the rows that actually changed. Never pad with "unchanged" rows just to make the table look full.
+
+```
+| Metric                    | Before | After | Change |
+|---------------------------|--------|-------|--------|
+| .DS_Store count           | 12     | 0     | -12    |
+| __pycache__ directories   | 4      | 0     | -4     |
+| Orphaned scratchpads      | 3      | 1     | -2     |
+| Broken wiki-links         | 7      | 3     | -4     |
+| CLAUDE.md present         | no     | yes   | fixed  |
+| Tracked build artifacts   | 2      | 2     | -      | ← user needs to run `git rm --cached` manually
+```
+
+Then one sentence summarizing what changed and what's still pending.
+
+### The custom analogy
+
+Close with a personified analogy specific to what you actually found — **when one lands naturally**. A forced analogy is worse than no analogy. If nothing clever fits the specific cruft you cleaned, a one-line plain summary is fine. But when an analogy *does* land, it's the part users will quote back at you — it makes the cleanup feel like someone cared rather than someone ran `find`.
+
+Filesystem metaphors only, never machine metaphors. The janitor-device skill owns the "haunted house running imaginary laundromats" territory; janitor-claude lives in the creative-workspace metaphors. Name the specific files, specific counts, specific villains.
+
+Framings to riff on (pick one, adapt to what was found, or invent something better):
+
+- **The writer's desk at the end of a long day.** The orphaned scratchpads are coffee-stained napkins with half-written ideas. The broken wiki-links are post-its pointing at notebooks the writer threw away last month. The missing `CLAUDE.md` is the desk having no nameplate — every new visitor walks up and has to ask who works here.
+- **The programmer who left coffee cups everywhere.** Each `.DS_Store` is a coffee cup. Each `scratch.py` is a sticky note that just says "FIX THIS" with no context. The missing `CLAUDE.md` is the missing map of which cup the programmer is currently drinking from.
+- **The chef's mise en place after dinner service.** Each piece of cruft is a half-empty container of something. `CLAUDE.md` is the recipe card pinned to the wall. A stale `CLAUDE.md` is a recipe card from the menu they stopped serving in October — the new cook reads it, gets confused, burns the risotto.
+- **The garden that's mostly fine but the gate is broken.** The broken wiki-links are pathways that end at fences. The orphaned scratchpads are seed packets for plants that never got planted. The missing `CLAUDE.md` is the garden having no map at the entrance — visitors wander in and immediately step on the tomatoes.
+- **The library with the card catalog two years out of date.** Specifically for stale `CLAUDE.md`. Books still on the shelves, but the catalog says section 412 when they're actually in 318. The librarian (Claude) confidently sends every visitor to the wrong aisle.
+- **The contractor's workbench halfway through a remodel.** Half the tools are where they belong. Half are in a pile labeled "temp" that's been there for six weeks. The blueprint (`CLAUDE.md`) is upside-down on the floor and covered in coffee rings.
+
+**Match the analogy to what you actually found.** Name the specific files, specific counts, specific villains. Generic analogies are forbidden.
+
+---
+
+## Safety rules (non-negotiable)
+
+1. **Read-only by default.** No mutations until Phase 4, and only after explicit permission.
+2. **No `rm` / `rm -rf` / `Remove-Item -Force -Recurse` on user files.** All deletions go to Trash / Recycle Bin.
+3. **No destructive git.** No `git add`, `git rm`, `git commit`, `git push`, `git reset`, `git branch -D`, `git clean`, `git stash`, `git checkout .`, `git restore .`. Read-only git only.
+4. **No `.git/` modifications, ever.**
+5. **Never overwrite `CLAUDE.md`.** Edit specific lines in audit mode, generate from scratch only if the file doesn't exist.
+6. **Never auto-rewrite a broken wiki-link.** Per-link confirmation always.
+7. **Never print suspected secret contents.** `file:line` only. Never paste the match into chat.
+8. **Never rename files.** Renames break links, break `git blame`, and break Claude's memory. Out of scope.
+9. **Never "refactor" anything.** Janitor is about clutter, not code quality.
+10. **Never recommend installing new tooling.** No "you should use pre-commit." Clean what's here, don't push dependencies.
+
+### Universal forbidden actions
+
+- **No network calls.** No `curl`, `wget`, `Invoke-WebRequest`, `Invoke-RestMethod`. No version-check pings, no GitHub API calls, no telemetry. Offline-only.
+- **No telemetry**, anonymized or otherwise.
+- **No obfuscated commands.** No base64, no `curl | bash`, no minified one-liners. Every command is plaintext and readable.
+- **No script files dropped to disk.** No `.sh` / `.ps1` / `.py` written and then executed. Inline commands only.
+- **No auto-commit / auto-push.** If the user wants git hygiene applied, they run the commands themselves.
+
+---
+
+## Quirks to know about
+
+**zsh empty globs.** `*pattern*` that matches nothing exits 1 with "no matches found" and can cancel sibling parallel calls. Wrap in `2>/dev/null` or use `find` instead of glob expansion.
+
+**`find` + `mv` mid-traversal failures.** If a parent directory is moved out from under an iteration, subsequent items fail. Run a second pass if the first has partial failures.
+
+**`git worktree list` in a non-git directory.** Fails silently, which is fine. Don't rely on its exit code as a signal; check for the `.git` directory first.
+
+**Obsidian case-insensitivity on macOS.** On case-insensitive filesystems (default macOS), `[[my note]]` resolves to `My Note.md` even though the case doesn't match. Don't flag case mismatches as broken links on macOS — they actually work in Obsidian.
+
+**Large vaults are slow.** A broken-link audit on a 5,000-file Obsidian vault can take 30+ seconds. Build the basename index once, cache it for the run, and process all links against the single in-memory index. Don't re-glob for each link.
+
+**`.claude/sessions/` may or may not exist.** If it does, you can read transcripts to infer which files Claude re-reads most often (useful for token-waste recommendations). If it doesn't, skip that recommendation source without error.
+
+---
+
+## If you don't find anything worth fixing
+
+If diagnostics come back clean:
+
+1. Tell the user the directory looks healthy. Name the specific signals: "no `.DS_Store` files, no oversized files in the read path, `CLAUDE.md` is present and its commands all resolve, no broken wiki-links."
+2. Offer one optional audit they might want anyway: "Want me to check for stale branches / old worktrees / suspected secrets?" Only suggest things janitor can actually check.
+3. Do not pad the report with fake findings. Do not recommend reorganization. A clean directory produces a three-line report and that's correct behavior.
