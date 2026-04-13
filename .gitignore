@@ -38,4 +38,11 @@ PUSH-INSTRUCTIONS.md
 PASTE-INTO-FRESH-SESSION.md
 START-HERE.md
 
+# Source art drops from image-generation tools (e.g. Hugging Face exports).
+# These are local working files, never committed — the published image lives
+# on GitHub's social-preview CDN, not in the repo.
+hf_*.png
+hf_*.jpg
+hf_*.jpeg
+
 # Meta: a janitor repo that commits junk to itself would be embarrassing
