@@ -1,0 +1,29 @@
+{
+  "name": "janitor",
+  "metadata": {
+    "description": "A Claude Code marketplace shipping the janitor plugin: two skills for cleaning up slow machines (macOS and Windows) and messy Claude Code working directories. Reversible, permission-gated, no telemetry."
+  },
+  "owner": {
+    "name": "ArshiaEcho",
+    "url": "https://github.com/ArshiaEcho"
+  },
+  "plugins": [
+    {
+      "name": "janitor",
+      "description": "Two slash-command skills: janitor-device diagnoses and cleans up slow macOS or Windows machines, and janitor-claude audits and tidies the current Claude Code working directory. Read-only by default, every mutation requires explicit confirmation, no silent sudo, no git mutations, no telemetry.",
+      "category": "productivity",
+      "source": "./plugins/janitor",
+      "homepage": "https://github.com/ArshiaEcho/janitor",
+      "keywords": [
+        "cleanup",
+        "performance",
+        "mac",
+        "macos",
+        "windows",
+        "claude-code",
+        "maintenance",
+        "diagnostics"
+      ]
+    }
+  ]
+}

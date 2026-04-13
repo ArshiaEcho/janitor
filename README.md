@@ -34,8 +34,8 @@ You do this manually:
 
 | Skill | Trigger phrases | What it does |
 |---|---|---|
-| [`/janitor-device`](skills/janitor-device/SKILL.md) | *"my mac is slow"*, *"my pc is laggy"*, *"clean up my laptop"*, *"fans won't shut up"*, *"why is my battery dying in two hours"* | Diagnoses your Mac or Windows machine, identifies the 3–5 villains slowing it down, fixes what's safe, hands you copy-paste blocks for anything that needs sudo or admin. Cross-platform. |
-| [`/janitor-claude`](skills/janitor-claude/SKILL.md) | *"clean up my session"*, *"audit my CLAUDE.md"*, *"find broken wiki-links"*, *"tidy this directory"*, *"Claude keeps re-reading the same files"* | Walks your current Claude Code working directory, finds orphaned scratchpads, broken wiki-links, missing or stale `CLAUDE.md`, oversized files getting re-read on every turn, and token-waste patterns. Read-only by default. |
+| [`/janitor-device`](plugins/janitor/skills/janitor-device/SKILL.md) | *"my mac is slow"*, *"my pc is laggy"*, *"clean up my laptop"*, *"fans won't shut up"*, *"why is my battery dying in two hours"* | Diagnoses your Mac or Windows machine, identifies the 3–5 villains slowing it down, fixes what's safe, hands you copy-paste blocks for anything that needs sudo or admin. Cross-platform. |
+| [`/janitor-claude`](plugins/janitor/skills/janitor-claude/SKILL.md) | *"clean up my session"*, *"audit my CLAUDE.md"*, *"find broken wiki-links"*, *"tidy this directory"*, *"Claude keeps re-reading the same files"* | Walks your current Claude Code working directory, finds orphaned scratchpads, broken wiki-links, missing or stale `CLAUDE.md`, oversized files getting re-read on every turn, and token-waste patterns. Read-only by default. |
 
 Both skills follow the same five-phase loop: **diagnose → identify villains → present and ask → fix → verify with a before/after table and (usually) a closing analogy about a haunted house or a dysfunctional orchestra.** You can invoke them as slash commands or just describe your problem in natural language. Janitor is fluent in complaint.
 
@@ -43,31 +43,45 @@ Both skills follow the same five-phase loop: **diagnose → identify villains �
 
 ## Install
 
-### From the plugin marketplace (recommended)
+### Recommended: marketplace install (CLI)
+
+```bash
+claude plugin marketplace add https://github.com/ArshiaEcho/janitor
+claude plugin install janitor
+```
+
+This registers janitor as a marketplace, then installs the plugin from it. Works in any Claude Code environment with the `claude plugin` CLI subcommand.
+
+Then **fully quit and relaunch Claude Code.** Not `/clear`. Not `⌘R`. A full quit. Plugins are discovered at session start, and `/clear` doesn't count as a start. This is the single most common "it doesn't work" report, and it's always this.
+
+### Interactive: `/plugin` from inside a Claude Code session
+
+If your Claude Code build supports the `/plugin` slash command (most recent builds do), you can also do it interactively:
 
 ```
 /plugin marketplace add https://github.com/ArshiaEcho/janitor
 /plugin install janitor
 ```
 
-Then **fully quit and relaunch Claude Code.** Not `/clear`. Not `⌘R`. A full quit. Skills are discovered at session start, and `/clear` doesn't count as a start. This is the single most common "it doesn't work" report, and it's always this.
+Then fully quit and relaunch Claude Code.
 
-### From a local clone (manual)
+### Verify
 
 ```bash
-git clone https://github.com/ArshiaEcho/janitor.git ~/.claude/plugins/janitor
+claude plugin list
 ```
 
-Then, yes, fully restart Claude Code. (Sorry. We tried.)
+You should see `janitor@janitor` in the list. If you don't, the install didn't take — see Troubleshooting below.
 
-### For development (symlink so edits propagate)
+### For development (local clone, edits propagate)
 
 ```bash
 git clone https://github.com/ArshiaEcho/janitor.git ~/Code/janitor
-ln -s ~/Code/janitor ~/.claude/plugins/janitor
+claude plugin marketplace add ~/Code/janitor
+claude plugin install janitor
 ```
 
-Restart Claude Code, then `/janitor-device` and `/janitor-claude` should appear in autocomplete. If they don't, see Troubleshooting below.
+Now when you edit files in `~/Code/janitor`, they take effect on the next Claude Code restart. Use this if you want to hack on janitor itself.
 
 ---
 
