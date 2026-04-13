@@ -1,3 +1,5 @@
+![janitor — mac, windows, and Claude Code cleanup](assets/social-preview.png)
+
 # janitor
 
 **Janitor is a Claude Code plugin that cleans up two things for you: your computer, and your Claude Code working directory. It diagnoses what's wrong, tells you in plain English, asks your permission, then fixes it. No telemetry. No nagging. No menu bar icon that somehow uses 43% CPU to remind you your Mac is dirty.**
