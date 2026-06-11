@@ -2,6 +2,21 @@
 
 All notable changes to the `janitor` plugin are documented in this file.
 
+## [0.2.0] — Stratos branding + modern cruft detection
+
+### Added
+- **Stratos House AI brand identity.** New `assets/social-preview.png` (1280×640) built on the shared Stratos card system — dark stage, mint/gold palette, `STRATOS HOUSE AI` header, chip row — with a broom mark replacing the diamond logo as the product hero. The source `assets/og-source.html` is committed so the card is reproducible.
+- **README rebrand.** Centered header block with `shields.io` badges (Claude Code Plugin / Platforms / MIT / by Stratos House AI) matching the sibling Stratos repos (`stratos-memory-stack`, `stratos-carousel-creator`).
+- **New `janitor-claude` villains:**
+  - **Tool & test caches** — `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.ipynb_checkpoints` detected and batch-cleaned to Trash like `__pycache__` (machine-generated, one confirmation).
+  - **Committed `.env` files** — tracked dotenv files (excluding `.example`/`.sample`/`.template`) flagged as a credential leak. Report-only: path shown, contents never printed, with `git rm --cached` + gitignore + rotate-credentials guidance.
+- **`obsidian` and `vault` keywords** added to `plugin.json` and `marketplace.json` for discoverability — `janitor-claude` explicitly supports Obsidian vaults.
+
+### Changed
+- **Plugin author → `Arshia Navabi` / `arshia@stratosagency.ai`** and **marketplace owner → `Stratos House AI`**, matching the other public Stratos plugins.
+- Broadened the tracked-build-artifact detector to also catch `coverage/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `.nuxt/`, and `venv/`.
+- Villain-catalog `last-verified` date bumped to 2026-06.
+
 ## [0.1.1] — Personality and marketplace release
 
 ### Added

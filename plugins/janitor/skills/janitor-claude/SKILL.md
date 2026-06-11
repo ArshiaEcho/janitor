@@ -106,6 +106,15 @@ find . -type d -name "__pycache__" \
 find . -type f -name "*.pyc" \
   ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.venv/*" 2>/dev/null | wc -l
 
+# Modern tool & test caches (pytest, mypy, ruff, jupyter)
+find . -maxdepth 4 -type d \
+  \( -name ".pytest_cache" -o -name ".mypy_cache" -o -name ".ruff_cache" -o -name ".ipynb_checkpoints" \) \
+  ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.venv/*" 2>/dev/null
+
+# Tracked build output / caches and committed .env files (security + token waste)
+git ls-files 2>/dev/null | grep -E "^(dist|build|node_modules|\.venv|venv|\.next|\.nuxt|target|out|coverage|\.pytest_cache|\.mypy_cache|\.ruff_cache|__pycache__)/" | head -20
+git ls-files 2>/dev/null | grep -E "(^|/)\.env($|\.)" | grep -vE "\.(example|sample|template|dist)$"
+
 # Dead symlinks
 find . -type l ! -exec test -e {} \; -print 2>/dev/null | head -20
 
@@ -259,6 +268,18 @@ find . -type f -name "*.pyc" \
   ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.venv/*" \
   -exec mv {} ~/.Trash/ \;
 ```
+
+**Tool & test cache cleanup** (auto-fixable after one confirmation — machine-generated, like `__pycache__`):
+
+```bash
+# Move pytest/mypy/ruff/jupyter caches to Trash
+find . -maxdepth 4 -type d \
+  \( -name ".pytest_cache" -o -name ".mypy_cache" -o -name ".ruff_cache" -o -name ".ipynb_checkpoints" \) \
+  ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.venv/*" \
+  -exec mv {} ~/.Trash/ \; 2>/dev/null
+```
+
+**Committed `.env` files** (report-only, never auto-fix): a tracked `.env` is a credential leak, not cruft. Report the path, **never print its contents**, and hand the user the `git rm --cached` + `.gitignore` + rotate-credentials steps. The secret is already in git history — editing the file does nothing. See the "Committed `.env`" villain in `references/session-villains.md`.
 
 **Orphaned scratchpad handling** (per-item):
 

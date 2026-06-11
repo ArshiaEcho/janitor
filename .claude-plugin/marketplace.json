@@ -1,11 +1,12 @@
 {
   "name": "janitor",
-  "metadata": {
-    "description": "A Claude Code marketplace shipping the janitor plugin: two skills for cleaning up slow machines (macOS and Windows) and messy Claude Code working directories. Reversible, permission-gated, no telemetry."
-  },
   "owner": {
-    "name": "ArshiaEcho",
-    "url": "https://github.com/ArshiaEcho"
+    "name": "Stratos House AI",
+    "url": "https://www.stratosagency.ai"
+  },
+  "metadata": {
+    "description": "A Claude Code marketplace shipping the janitor plugin: two skills for cleaning up slow machines (macOS and Windows) and messy Claude Code working directories. Reversible, permission-gated, no telemetry.",
+    "homepage": "https://www.stratosagency.ai"
   },
   "plugins": [
     {
@@ -22,7 +23,9 @@
         "windows",
         "claude-code",
         "maintenance",
-        "diagnostics"
+        "diagnostics",
+        "obsidian",
+        "vault"
       ]
     }
   ]
