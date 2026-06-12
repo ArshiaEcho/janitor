@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/social-preview.png" alt="Stratos Janitor — mac, windows, and Claude Code cleanup" width="100%" />
+  <img src="assets/social-preview.png?v=2" alt="Stratos Janitor — mac, windows, and Claude Code cleanup" width="100%" />
 </div>
 
 <h1 align="center">🧹 janitor</h1>
