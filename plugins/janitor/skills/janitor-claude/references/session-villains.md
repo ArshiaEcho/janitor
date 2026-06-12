@@ -1,6 +1,6 @@
 # Session / directory villain catalog
 
-**Last verified:** 2026-04 — update this date when you revise the catalog. Claude Code conventions and token-cost patterns evolve; a villain list that's stale will waste effort on things Claude now handles gracefully.
+**Last verified:** 2026-06 — update this date when you revise the catalog. Claude Code conventions and token-cost patterns evolve; a villain list that's stale will waste effort on things Claude now handles gracefully.
 
 Load this file when janitor-claude has finished Phase 1 diagnostics and needs to match observations against known culprits. These are the things that actually slow down Claude Code sessions and waste tokens in real working directories, ranked by likelihood and blast radius.
 
@@ -31,6 +31,18 @@ Unlike janitor-device, **the default here is read-only**. A working directory is
   find . -type f -name "*.pyc" 2>/dev/null | wc -l
   ```
 - **Fix:** ask once, then move to Trash in one batch. Suggest `.gitignore` entries if missing.
+
+### Tool & test caches (`.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.ipynb_checkpoints`)
+
+- **What they are:** Caches written by modern Python tooling — pytest, mypy, ruff — and Jupyter checkpoint snapshots. All regenerated automatically on the next run.
+- **Why they matter:** Same blast radius as `__pycache__`: they bloat the tree, get committed by accident when there's no `.gitignore` entry, and every directory walk steps over them. They're more common now than `.pyc` files because the tools that write them ship in nearly every Python project.
+- **How to detect:**
+  ```bash
+  find . -maxdepth 4 -type d \
+    \( -name ".pytest_cache" -o -name ".mypy_cache" -o -name ".ruff_cache" -o -name ".ipynb_checkpoints" \) \
+    ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.venv/*" 2>/dev/null
+  ```
+- **Fix:** machine-generated, so treat them exactly like `__pycache__` — show the count once, then batch-move to Trash on one confirmation. Suggest `.gitignore` entries if any were tracked. Never `rm`.
 
 ### Dead symlinks
 
@@ -91,12 +103,23 @@ Unlike janitor-device, **the default here is read-only**. A working directory is
 - **Why they matter:** Bloats the repo, wastes tokens on every Claude read, and worst case leaks local machine state into git history.
 - **How to detect:**
   ```bash
-  # Compare tracked files to common build directory patterns
-  git ls-files 2>/dev/null | grep -E "^(dist|build|node_modules|\.venv|\.next|target|out)/" | head -20
+  # Compare tracked files to common build / cache directory patterns
+  git ls-files 2>/dev/null | grep -E "^(dist|build|node_modules|\.venv|venv|\.next|\.nuxt|target|out|coverage|\.pytest_cache|\.mypy_cache|\.ruff_cache|__pycache__)/" | head -20
   # Check gitignore
   cat .gitignore 2>/dev/null
   ```
 - **Fix:** **never run `git rm`.** Show the tracked paths, recommend the `.gitignore` entries needed, let the user run `git rm --cached` themselves.
+
+### Committed `.env` and secret-bearing dotfiles
+
+- **What they are:** `.env`, `.env.local`, `.env.production`, or similar files tracked in git. Unlike `.env.example` (a template, legitimate), a real `.env` almost always holds credentials.
+- **Why they matter:** This is the most common way secrets leak into a repo. Once committed, the values are in git history even after deletion — a tracked `.env` is both a token-waste villain and a security incident waiting to happen.
+- **How to detect:**
+  ```bash
+  # Tracked dotenv files, excluding example/template variants
+  git ls-files 2>/dev/null | grep -E "(^|/)\.env($|\.)" | grep -vE "\.(example|sample|template|dist)$"
+  ```
+- **Fix:** **report and stop — never print the file contents.** Tell the user the path, recommend they (a) `git rm --cached <file>` themselves, (b) add it to `.gitignore`, and (c) **rotate any credentials it held**, because removing the file does nothing about git history. Point them at `gitleaks` / `git-filter-repo`. This connects to the "Suspected secrets" rule in Tier 3 — same handling, never remediate by editing.
 
 ### Broken Obsidian / markdown wiki-links
 

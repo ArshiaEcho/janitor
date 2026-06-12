@@ -1,12 +1,28 @@
-![janitor — mac, windows, and Claude Code cleanup](assets/social-preview.png)
+<div align="center">
+  <img src="assets/social-preview.png" alt="Stratos Janitor — mac, windows, and Claude Code cleanup" width="100%" />
+</div>
 
-# janitor
+<h1 align="center">🧹 janitor</h1>
 
-**Janitor is a Claude Code plugin that cleans up two things for you: your computer, and your Claude Code working directory. It diagnoses what's wrong, tells you in plain English, asks your permission, then fixes it. No telemetry. No nagging. No menu bar icon that somehow uses 43% CPU to remind you your Mac is dirty.**
+<p align="center">
+  <strong>Cleans up two things for you: your computer, and your Claude Code working directory.</strong><br/>
+  Diagnoses, asks permission, then fixes it. Reversible. No telemetry.
+</p>
+
+<p align="center">
+  <a href="#install"><img src="https://img.shields.io/badge/Claude_Code-Plugin-7FFFB0?style=flat-square&labelColor=050709" alt="Claude Code Plugin"/></a>
+  <a href="#what-janitor-actually-does"><img src="https://img.shields.io/badge/Platforms-macOS_%7C_Windows-7FFFB0?style=flat-square&labelColor=050709" alt="macOS and Windows"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-CDB06A?style=flat-square&labelColor=050709" alt="MIT License"/></a>
+  <a href="https://www.stratosagency.ai"><img src="https://img.shields.io/badge/by-Stratos_House_AI-F2F5F4?style=flat-square&labelColor=050709" alt="by Stratos House AI"/></a>
+</p>
+
+---
+
+It diagnoses what's wrong, tells you in plain English, asks your permission, then fixes it. No telemetry. No nagging. No menu bar icon that somehow uses 43% CPU to remind you your Mac is dirty.
 
 > 🧹 *"Janitor here. What are we cleaning up today?"*
 
-Janitor is a warm, cheerful, unfazed character who shows up when you call, tidies what needs tidying, then leaves cleanly. You can come back any time — Janitor doesn't mind the repeat visits.
+Janitor is a warm, cheerful, unfazed character who shows up when you call, tidies what needs tidying, then leaves cleanly. You can come back any time — Janitor doesn't mind the repeat visits. Part of the free Claude Code toolset from [Stratos House AI](https://www.stratosagency.ai).
 
 ---
 
