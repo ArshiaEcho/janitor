@@ -111,7 +111,7 @@ Janitor is two skills and their reference files. `SKILL.md` holds the steps and 
 Every line here is a rule in the skill itself, read on every run.
 
 - **No network.** No telemetry, no version checks, no analytics, no auto-updates. If you see it reach for the network, that is a bug.
-- **No deleting.** Trash and Recycle Bin only, through the system's own mechanisms. Never `rm`.
+- **No deleting.** Trash and Recycle Bin only, through the system's own mechanisms. Never `rm`. Where only a tool's own clean command can free the space, such as `brew cleanup`, `xcrun simctl runtime delete` or `ollama rm`, it is handed to you as a block to run yourself.
 - **No silent sudo.** Anything elevated is a plain block for you to run.
 - **No git changes.** It reads `status`, `log`, `diff` and `worktree list`. It never commits, removes, resets, prunes or cleans.
 - **No silent edits to your instructions.** CLAUDE.md changes are shown as a diff first. Broken wiki links are reported, never rewritten.
@@ -139,7 +139,8 @@ Janitor is free and MIT licensed. It runs inside your Claude Code session, so it
 - **Windows changes have not run on Windows.** Some process names, such as the Widgets and Cross Device services, come from reports rather than Microsoft docs.
 - **Snap commands are from memory.** The official snapd docs needed a sign-in, so `snap refresh --hold` and the retain range are unconfirmed.
 - **A few macOS fixes rest on one source.** The `dasd` repair and the Spotlight loop are labelled as such in the catalog.
-- **The new Claude Code checks are read from the docs.** They follow code.claude.com and the Claude Code changelog as of November 2026. Only the demo folder above has been run end to end.
+- **Tested on one Mac, read-only.** Both skills were run headless on macOS against this branch: `janitor-claude` on the demo folder above, `janitor-device` on a real Mac with a nearly full disk. Both found the planted or real problems, kept git and tool cleanups for the user, and stopped for a yes. The fix step was not run.
+- **The new Claude Code checks are read from the docs.** They follow code.claude.com and the Claude Code changelog as of November 2026.
 - **Developer cache sizes are reported, not benchmarked.** Each tool's own clean command is offered where one exists. What each saves depends on your machine.
 
 Report what you find. A new villain with a detection command, a reversible fix, the OS version and the CPU or memory it burned is the fastest path to a merged PR.

@@ -247,7 +247,7 @@ These are the files Claude Code itself reads every session. Most of them load be
 ### Duplicate agents and commands
 
 - **Agents:** `.claude/agents/*.md` and `~/.claude/agents/*.md` (scanned recursively). `name` and `description` are both **required**; a file with no `name` is treated as documentation, a file with `name` but no `description`, a `name` containing `:` or starting with `-`, or unparseable YAML is **skipped silently** (reason only in the `--debug` log). Two files in the same `agents/` tree with the same `name` load only one, by filesystem order. Same name across scopes: project beats user beats plugin.
-- **Commands vs skills:** a skill and a `.claude/commands/<name>.md` with the same name: **the skill wins**, so the command file is dead weight. Personal beats project for skills of the same name.
+- **Commands vs skills:** a skill and a `.claude/commands/<name>.md` with the same name collide. The docs say the skill wins, but inside a plugin the command file was seen loading instead of the skill (janitor 0.3 testing, November 2026). Either way one of them is dead weight: report the pair and suggest keeping the skill. Personal beats project for skills of the same name.
 - **How to detect:** list `name:` values across `.claude/agents/`, `~/.claude/agents/`; list command basenames in `.claude/commands/` and `~/.claude/commands/` against skill folder names. Report collisions and skipped files.
 - **Fix:** report only. Suggest which copy is shadowed; the user decides which to keep. Moving a shadowed file to Trash is a per-file confirmation.
 

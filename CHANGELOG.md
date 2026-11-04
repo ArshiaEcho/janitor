@@ -21,6 +21,8 @@ All notable changes to the `janitor` plugin are documented in this file.
 
 ### Removed
 - `assets/og-source.html`, replaced by `scripts/brand/social.html`.
+- **The `commands/` stubs.** They shared the skills' names, so `/janitor-device` and `/janitor-claude` loaded a one-line stub instead of the skill, and Claude went looking for the skill files on disk. Skills are slash commands on their own, so both names still work.
+- **The plan now has a "Commands only you run" bucket** in `janitor-claude`, so `git rm --cached` is always handed to the user.
 
 ## [0.2.0] — Stratos branding + modern cruft detection
 

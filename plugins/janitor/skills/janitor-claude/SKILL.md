@@ -246,11 +246,16 @@ Present a **structured report** with specific counts and file paths. Every line 
 - 7 broken wiki-links (I'll show each with a suggested fix)
 - `data/transcript.json` — move to `archive/`, gitignore, or leave alone?
 
+💻 Commands only you run (janitor never runs git that changes anything):
+- `git rm --cached .env`, then rotate the key it held, because history keeps it
+
 📄 Optional:
 - Scaffold a `CLAUDE.md` via a 5-question protocol (takes ~1 minute)
 
 Reply with "go ahead" for the auto-fixable items, or tell me which items to work through first.
 ```
+
+**Anything that needs `git rm`, `git rm --cached`, `git commit` or a history rewrite goes in the "Commands only you run" bucket, never in a bucket janitor fixes.** Phrase it as a command for the user to paste, never as "I'll untrack it." Untracking is a git mutation even when the file stays on disk.
 
 **Always wait for explicit confirmation before any mutation.** Never take "sure" or "okay" as a yes for a destructive action. Re-ask if the response is ambiguous.
 
