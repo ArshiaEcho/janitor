@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- The README flow diagram. Rendered at 2400x1000 by scripts/brand/build_assets.sh. -->
+<html><head><meta charset="utf-8"><style>
+@font-face { font-family: Geist; src: url(fonts/Geist-Variable.ttf); font-weight: 100 900; }
+* { margin: 0; box-sizing: border-box; }
+html, body { width: 2400px; height: 1000px; overflow: hidden; }
+body { font-family: Geist, sans-serif; color: #f3f7fa; position: relative;
+  background: radial-gradient(1200px 700px at 70% 100%, rgba(127, 220, 189, .07), transparent 70%), linear-gradient(160deg, #101b24, #080d13); }
+.row { position: absolute; left: 0; width: 2400px; height: 300px; }
+.label { position: absolute; left: 34px; top: 60px; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 22px; letter-spacing: .14em; color: #5e7080; }
+.node { position: absolute; width: 300px; z-index: 1; text-align: center; }
+.node .tile { width: 132px; height: 132px; margin: 0 auto; border-radius: 34px; background: linear-gradient(135deg, #1b2c35, #101b24 62%); border: 2px solid rgba(211, 238, 252, .16); display: flex; align-items: center; justify-content: center; }
+.node .tile img { width: 72px; height: 72px; }
+.node .tile b { font-size: 34px; font-weight: 600; color: #b5f4d9; }
+.node h3 { margin-top: 22px; font-size: 34px; font-weight: 500; }
+.node p { margin-top: 8px; font-size: 24px; color: #8fa3b3; }
+.node.done .tile { background: #b5f4d9; border: 0; box-shadow: 0 0 60px rgba(181, 244, 217, .35); }
+.node.done .tile b { color: #080d13; }
+svg { position: absolute; inset: 0; }
+.note { position: absolute; font-size: 25px; color: #fad5b1; }
+</style></head><body>
+<svg width="2400" height="1000">
+  <defs><linearGradient id="l" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="2400" y2="0"><stop offset="0" stop-color="#7fdcbd" stop-opacity=".55"/><stop offset="1" stop-color="#8aa2f0" stop-opacity=".55"/></linearGradient></defs>
+  <g stroke="url(#l)" stroke-width="5" fill="none">
+    <path d="M330 156 H2148"/>
+    <path d="M2280 156 C2380 156 2380 466 2280 466"/>
+    <path d="M2148 466 H330"/>
+    <path d="M198 466 C60 466 60 776 198 776"/>
+    <path d="M330 776 H2148"/>
+  </g>
+</svg>
+<div class="row" style="top:90px"><div class="label">LOOK</div>
+  <div class="node" style="left:114px;top:0"><div class="tile"><b>&gt;_</b></div><h3>You ask</h3><p>In plain words</p></div>
+  <div class="node" style="left:764px;top:0"><div class="tile"><img src="../../assets/logos/diagnose.svg"></div><h3>Detect</h3><p>Mac, Windows, Linux or a folder</p></div>
+  <div class="node" style="left:1414px;top:0"><div class="tile"><img src="../../assets/logos/disk.svg"></div><h3>Diagnose</h3><p>Read-only commands</p></div>
+  <div class="node" style="left:2064px;top:0"><div class="tile"><img src="../../assets/logos/villains.svg"></div><h3>Villains</h3><p>The real culprits, by name</p></div>
+</div>
+<div class="row" style="top:400px"><div class="label">ASK</div>
+  <div class="node" style="left:114px;top:0"><div class="tile"><img src="../../assets/logos/verify.svg"></div><h3>Your yes</h3><p>Item by item</p></div>
+  <div class="node" style="left:764px;top:0"><div class="tile"><img src="../../assets/logos/settings.svg"></div><h3>By hand</h3><p>Settings only you can flip</p></div>
+  <div class="node" style="left:1414px;top:0"><div class="tile"><img src="../../assets/logos/password.svg"></div><h3>Your password</h3><p>A block you read and paste</p></div>
+  <div class="node" style="left:2064px;top:0"><div class="tile"><img src="../../assets/logos/clutter.svg"></div><h3>The plan</h3><p>Three buckets, plain English</p></div>
+</div>
+<div class="note" style="left:1060px;top:648px">Say no to anything and nothing changes</div>
+<div class="row" style="top:710px"><div class="label">FIX</div>
+  <div class="node" style="left:114px;top:0"><div class="tile"><img src="../../assets/logos/trash.svg"></div><h3>Fix</h3><p>Trash, never rm</p></div>
+  <div class="node" style="left:764px;top:0"><div class="tile"><img src="../../assets/logos/memory.svg"></div><h3>Reversible</h3><p>Renamed to .disabled</p></div>
+  <div class="node" style="left:1414px;top:0"><div class="tile"><img src="../../assets/logos/diagnose.svg"></div><h3>Verify</h3><p>The same commands again</p></div>
+  <div class="node done" style="left:2064px;top:0"><div class="tile"><b>Clean</b></div><h3>Before and after</h3><p>A table, then it leaves</p></div>
+</div>
+</body></html>

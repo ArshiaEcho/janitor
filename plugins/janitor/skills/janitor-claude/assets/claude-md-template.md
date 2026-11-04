@@ -1,5 +1,6 @@
 # {{REPO_NAME}}
 
+{{AGENTS_IMPORT}}
 {{ONE_LINE_PURPOSE}}
 
 ## Stack
@@ -25,10 +26,18 @@
 
 {{KEY_FILES_LIST}}
 
-<!--
-Template notes for whoever is reading this (janitor-claude fills these in from the 5-question protocol + auto-detection):
+## Compact instructions
 
-- Keep this file under 100 lines. It loads on every session. Every line is a token cost on every prompt.
-- If a section has nothing useful to say, delete the section entirely — don't leave "N/A" or placeholder text.
-- Update this file when conventions change. Janitor-claude can help you audit it later with "audit my CLAUDE.md".
+{{COMPACT_FOCUS}}
+
+<!--
+Template notes for janitor-claude. STRIP THIS WHOLE COMMENT BLOCK before showing the draft. (Last verified 2026-11 against code.claude.com/docs/en/memory and /costs.)
+
+- Target under 100 lines. The docs target under 200 per file; this file loads every session. @imports don't reduce the cost.
+- {{AGENTS_IMPORT}}: write `@AGENTS.md` only if the repo has an AGENTS.md. Otherwise delete the line. Never copy AGENTS.md text in here.
+- Delete any section with nothing specific to say. No "N/A", no placeholders.
+- "Compact instructions" is optional: one line on what to keep when the conversation is summarised (e.g. "keep test output and the list of files changed"). Delete the section if the user has no preference.
+- Don't-read entries are guidance only. If the user needs a hard block, suggest a permissions.deny rule such as Read(./secrets/**) in .claude/settings.json instead.
+- Personal preferences go in CLAUDE.local.md (gitignored), procedures in a skill, area-specific rules in .claude/rules/<topic>.md with a paths: list. Mention, don't create.
+- Write `@path` only for a file that should load every session; mention a path without importing it by wrapping it in backticks.
 -->

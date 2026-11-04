@@ -1,24 +1,39 @@
 # Cross-OS metric mapping
 
-This file is the source of truth for the before/after table in Phase 5. When a row's metric exists on both macOS and Windows, include it. When it's OS-specific, include it only on that OS. **Never print "N/A" — omit the row entirely** so the table feels native to the user's OS instead of feeling like a half-working cross-platform abstraction.
+**Last verified:** 2026-11 — covers macOS 26/27, Windows 11 25H2/26H2, and Linux (Ubuntu 24.04/26.04, Fedora 43/44).
+
+This file is the source of truth for the before/after table in Phase 5. When a row's metric exists on the user's OS, include it. When it's OS-specific, include it only on that OS. **Never print "N/A" — omit the row entirely** so the table feels native to the user's OS instead of feeling like a half-working cross-platform abstraction.
 
 ---
 
-## Metrics available on BOTH macOS and Windows
+## Metrics available on ALL THREE (macOS, Windows, Linux)
 
-| Metric | macOS command | Windows (PowerShell 7+) command |
-|---|---|---|
-| Top CPU process | `ps -Ao pid,pcpu,pmem,comm -r \| head -5` | `Get-Process \| Sort-Object CPU -Desc \| Select-Object -First 5 Id,Name,CPU` |
-| Top memory process | `ps -Ao pid,pcpu,pmem,comm -m \| head -5` | `Get-Process \| Sort-Object WorkingSet -Desc \| Select-Object -First 5 Id,Name,@{n='WS_MB';e={[math]::Round($_.WorkingSet/1MB,0)}}` |
-| Disk space free | `df -h /` | `Get-PSDrive C \| Select-Object Used,Free` |
-| Total running processes | `ps ax \| wc -l` | `(Get-Process).Count` |
-| Uptime | `uptime` | `(Get-CimInstance Win32_OperatingSystem).LastBootUpTime` |
-| Hardware model | `system_profiler SPHardwareDataType` | `Get-CimInstance Win32_ComputerSystem \| Select Manufacturer, Model` |
-| OS version | `sw_vers` | `[System.Environment]::OSVersion` |
+| Metric | macOS command | Windows (PowerShell 7+) command | Linux command |
+|---|---|---|---|
+| Top CPU process | `ps -Ao pid,pcpu,pmem,comm -r \| head -5` | `Get-Process \| Sort-Object CPU -Desc \| Select-Object -First 5 Id,Name,CPU` | `ps -eo pid,pcpu,pmem,comm --sort=-pcpu \| head -5` |
+| Top memory process | `ps -Ao pid,pcpu,pmem,comm -m \| head -5` | `Get-Process \| Sort-Object WorkingSet -Desc \| Select-Object -First 5 Id,Name,@{n='WS_MB';e={[math]::Round($_.WorkingSet/1MB,0)}}` | `ps -eo pid,pcpu,pmem,comm --sort=-pmem \| head -5` |
+| Disk space free | `df -h /` | `Get-PSDrive C \| Select-Object Used,Free` | `df -h /` |
+| Total running processes | `ps ax \| wc -l` | `(Get-Process).Count` | `ps -e --no-headers \| wc -l` |
+| Uptime | `uptime` | `(Get-CimInstance Win32_OperatingSystem).LastBootUpTime` | `uptime -p` |
+| Hardware model | `system_profiler SPHardwareDataType` | `Get-CimInstance Win32_ComputerSystem \| Select Manufacturer, Model` | `cat /sys/class/dmi/id/product_name` |
+| OS version | `sw_vers` | `(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').DisplayVersion` | `grep PRETTY_NAME /etc/os-release` |
+| Dev caches (sum) | sum of the rows measured in the Developer disk hogs section | same | same |
+
+Dev caches (sum) is only shown when the user is a developer and the section was run. Never count AI models or `node_modules` in it; if models were removed, add a separate dynamic row (`Ollama models`, `HF cache`).
 
 ---
 
-## Metrics available on macOS ONLY (omit rows entirely on Windows)
+## Metrics on macOS AND Linux (omit on Windows)
+
+| Metric | macOS | Linux | Why not Windows |
+|---|---|---|---|
+| Load average (1/5/15) | `uptime` | `uptime` or `cat /proc/loadavg` | Windows has no load average concept. CPU percentage via `Get-Counter` is instantaneous, not windowed. Skip. |
+
+Note: Linux load average also counts tasks stuck in uninterruptible disk wait, so it can be high on a slow disk with low CPU. Mention that if CPU looks idle.
+
+---
+
+## Metrics available on macOS ONLY (omit rows entirely on Windows and Linux)
 
 | Metric | macOS command | Why there's no Windows equivalent |
 |---|---|---|
@@ -30,11 +45,10 @@ This file is the source of truth for the before/after table in Phase 5. When a r
 | Battery max capacity | `system_profiler SPPowerDataType` | Windows Settings → System → Power & battery → Battery health shows this for laptops, but there's no universal CLI. Skip. |
 | Time Machine local snapshots | `tmutil listlocalsnapshots /` | Windows has no equivalent (Shadow Copies are different and admin-only). Skip. |
 | Spotlight indexer state | `mdutil -sa` | Windows has `Get-Service WSearch` which reports running/stopped but not "indexing progress." Report the service state as a separate Windows metric. |
-| Load average (1/5/15) | `uptime` | Windows has no load average concept. CPU percentage via `Get-Counter` is the closest, but it's instantaneous, not windowed. Skip load average on Windows. |
 
 ---
 
-## Metrics available on Windows ONLY (omit rows entirely on macOS)
+## Metrics available on Windows ONLY (omit rows entirely on macOS and Linux)
 
 | Metric | Windows command | Why there's no macOS equivalent |
 |---|---|---|
@@ -43,6 +57,22 @@ This file is the source of truth for the before/after table in Phase 5. When a r
 | Scheduled tasks count | `(Get-ScheduledTask \| Where State -eq Ready).Count` | macOS has launchd agents/daemons, which are reported differently. Keep these as separate rows per-OS rather than forcing a shared "autostart entries" row. |
 | Services running count | `(Get-Service \| Where Status -eq Running).Count` | macOS has launchctl-managed services, reported differently. Keep separate. |
 | Defender status | `Get-MpComputerStatus \| Select RealTimeProtectionEnabled` | macOS has XProtect which is opaque. Skip the parallel row. |
+| WorkloadsSessionHost RAM (Copilot+ PCs) | `(Get-Process WorkloadsSessionHost -ErrorAction SilentlyContinue \| Measure-Object WorkingSet -Sum).Sum/1MB` | Windows-only AI model host. Include only where it was running. |
+
+---
+
+## Metrics available on Linux ONLY (omit rows entirely on macOS and Windows)
+
+| Metric | Linux command | Notes |
+|---|---|---|
+| Available memory | `free -m` (the `available` column) | Never report the `free` column; Linux uses spare RAM as cache on purpose |
+| Memory pressure (PSI) | `cat /proc/pressure/memory` (`some avg10`) | Kernel 4.20+. Omit the row if the file is missing |
+| Swap used | `swapon --show` / `free -m` | On Fedora this is usually zram (compressed RAM); label it `zram used` there |
+| Power profile | `powerprofilesctl get` | Omit if the command isn't installed |
+| Journal size | `journalctl --disk-usage` | |
+| Failed units | `systemctl --failed --no-legend \| wc -l` | Add `--user` for the session count |
+| Snap disabled revisions | `snap list --all \| awk '/disabled/' \| wc -l` | Ubuntu / snap systems only |
+| Unused Flatpak runtimes | `flatpak uninstall --unused` shows them (answer no to just count) | Flatpak systems only |
 
 ---
 
@@ -51,7 +81,7 @@ This file is the source of truth for the before/after table in Phase 5. When a r
 When building the before/after table in Phase 5:
 
 1. **Always include the shared rows** (top CPU, top memory, disk free, process count).
-2. **Include the OS-specific rows for whichever OS the user is on.** Never both sets.
+2. **Include the OS-specific rows for whichever OS the user is on**, including the macOS-and-Linux load average row on those two. Never another OS's set.
 3. **Include villain-specific rows** — these are dynamic based on what was found (e.g., "Adobe CPU", "McAfee CPU", "OneDrive CPU"). These are never in this mapping table because they depend on the diagnosis.
 4. **Never emit "N/A" or "—" to indicate a missing metric.** Just omit the row.
 
@@ -81,4 +111,18 @@ Example output for a Windows run:
 | McAfee CPU (sum)    | 34%      | 0%       | -34%    |
 ```
 
-Notice the Mac table has `Free memory pages` and `Memory compressor` and `Low Power Mode`; the Windows table has `Free memory (MB)` and `Power plan` and `Services running`. Those are not the same metrics and the units are different. Keep them separate and don't lie about parity.
+Example output for a Linux run:
+```
+| Metric                | Before    | After     | Change   |
+|-----------------------|-----------|-----------|----------|
+| Top CPU process       | localsear | firefox   | fixed    |
+| Top memory process    | firefox   | firefox   | -        |
+| Available memory (MB) | 1900      | 5100      | +3200    |
+| Memory pressure avg10 | 18.4      | 0.6       | -17.8    |
+| Load average 1/5/15   | 6.1/5.8/5 | 1.2/1.4/2 | settling |
+| Disk space free       | 21 GB     | 34 GB     | +13 GB   |
+| Power profile         | power-sav | balanced  | fixed    |
+| Dev caches (sum)      | 14.2 GB   | 3.1 GB    | -11.1 GB |
+```
+
+Notice the Mac table has `Free memory pages` and `Memory compressor` and `Low Power Mode`; the Windows table has `Free memory (MB)` and `Power plan` and `Services running`. Those are not the same metrics and the units are different. The Linux table has `Available memory (MB)` and `Memory pressure`, which are different again. Keep them separate and don't lie about parity.

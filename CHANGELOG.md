@@ -2,6 +2,28 @@
 
 All notable changes to the `janitor` plugin are documented in this file.
 
+## [0.3.0] - Up to date for November 2026, Linux, and the Altocue house README
+
+### Added
+- **Linux support for `janitor-device`.** New `linux-villains.md` and `fix-blocks-linux.md`: GNOME LocalSearch, snapd, software-centre loops, KDE Baloo, power profiles, journald size, old kernels and unused Flatpak runtimes. Distro, desktop and WSL detection in `SKILL.md`. Trash through `gio trash`, every elevated step as a block the user runs.
+- **Developer disk hogs on all three systems.** Xcode DerivedData and old simulators, Homebrew, npm, pnpm, yarn, uv and pip caches, and Hugging Face, Ollama and LM Studio model folders, sized first. Models move only with a yes for each one. Docker stays out of scope.
+- **macOS 26 and 27 villains.** Post-upgrade settling, stuck Spotlight, Photos analysis, Liquid Glass costs, Apple Intelligence disk use, Time Machine and `dasd` on 27.0.x.
+- **Windows 11 25H2 and 26H2 villains.** The Copilot+ AI host, Copilot auto-start, Phone Link, Widgets, the new Teams client, NVIDIA App, and the WSL disk image as report only. A reversible Recall removal block.
+- **Claude Code config hygiene for `janitor-claude`.** Overlapping or long CLAUDE.md, CLAUDE.local.md and AGENTS.md files, `@imports` to missing files, rules whose paths match nothing, settings drift, hooks and `.mcp.json` servers whose commands are missing, broken skill frontmatter, duplicate agents and commands, stale worktrees, and other AI tools' folders reported only.
+- **Opt-in `~/.claude` check.** Sizes of transcripts, plugin cache and other user-level state. Transcripts are never read.
+- **README images made in code** under `scripts/brand/`: logos and tiles, a chrome broom rendered in Blender, the banner, the flow diagram and the terminal GIF, rebuilt with `scripts/brand/build_assets.sh`. Geist fonts ship with their OFL licence.
+
+### Changed
+- **README rewritten in the Altocue house structure:** banner, badges, demo GIF, what it does, install, use, tool tiles, how it works, what it never does, cost, honest limits and what is not proven yet.
+- **Nothing is removed outright any more.** The CleanMyMac residue step and the Windows search index now go to the Trash or are renamed, where they used `rm -rf` or deletion before.
+- **`janitor-claude` no longer reads `.claude/sessions/`.** That folder is gone from Claude Code, and transcripts are now off limits.
+- **Every catalog's "Last verified" date is 2026-11.**
+
+### Removed
+- `assets/og-source.html`, replaced by `scripts/brand/social.html`.
+- **The `commands/` stubs.** They shared the skills' names, so `/janitor-device` and `/janitor-claude` loaded a one-line stub instead of the skill, and Claude went looking for the skill files on disk. Skills are slash commands on their own, so both names still work.
+- **The plan now has a "Commands only you run" bucket** in `janitor-claude`, so `git rm --cached` is always handed to the user.
+
 ## [0.2.0] — Stratos branding + modern cruft detection
 
 ### Added

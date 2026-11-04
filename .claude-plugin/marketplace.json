@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "janitor",
-      "description": "Two slash-command skills: janitor-device diagnoses and cleans up slow macOS or Windows machines, and janitor-claude audits and tidies the current Claude Code working directory. Read-only by default, every mutation requires explicit confirmation, no silent sudo, no git mutations, no telemetry.",
+      "description": "Two slash-command skills: janitor-device diagnoses and cleans up slow macOS, Windows or Linux machines, and janitor-claude audits and tidies the current Claude Code working directory. Read-only by default, every mutation requires explicit confirmation, no silent sudo, no git mutations, no telemetry.",
       "category": "productivity",
       "source": "./plugins/janitor",
       "homepage": "https://github.com/ArshiaEcho/janitor",
@@ -25,7 +25,8 @@
         "maintenance",
         "diagnostics",
         "obsidian",
-        "vault"
+        "vault",
+        "linux"
       ]
     }
   ]

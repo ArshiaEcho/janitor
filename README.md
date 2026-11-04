@@ -1,267 +1,158 @@
 <div align="center">
-  <img src="assets/social-preview.png?v=2" alt="Stratos Janitor — mac, windows, and Claude Code cleanup" width="100%" />
+  <a href="https://github.com/ArshiaEcho/janitor"><img src="assets/social-preview.png" alt="Janitor. Messy machine in. Tidy one out." width="100%"></a>
+
+  <h1>Janitor</h1>
+
+  <p><strong>The cleanup crew for your computer and your Claude Code folder.</strong><br>
+  A Claude Code plugin that finds what is slowing your machine down or cluttering your project, tells you in plain English, asks first, then fixes it. Everything it touches can be undone.</p>
+
+  <p>
+    <a href="#install"><img src="https://img.shields.io/badge/Claude_Code-Plugin-b5f4d9?style=flat-square&labelColor=080d13" alt="Claude Code plugin"></a>
+    <a href="#what-it-does"><img src="https://img.shields.io/badge/Platforms-macOS_%7C_Windows_%7C_Linux-a5e7d1?style=flat-square&labelColor=080d13" alt="macOS, Windows and Linux"></a>
+    <a href="#what-it-never-does"><img src="https://img.shields.io/badge/Telemetry-None-b8cbfb?style=flat-square&labelColor=080d13" alt="No telemetry"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-f3f7fa?style=flat-square&labelColor=080d13" alt="MIT licence"></a>
+    <a href="https://www.stratosagency.ai"><img src="https://img.shields.io/badge/by-Stratos_House-f3f7fa?style=flat-square&labelColor=080d13" alt="By Stratos House"></a>
+  </p>
 </div>
 
-<h1 align="center">🧹 janitor</h1>
+<div align="center"><img src="assets/terminal.gif" alt="A janitor-claude pass over a demo folder: it lists caches, a dead symlink, a missing CLAUDE.md import, a hook and an MCP server pointing at missing files, a skill with no frontmatter and a tracked .env file, then moves the 8 cache items to the Trash on a yes" width="100%"></div>
 
-<p align="center">
-  <strong>Cleans up two things for you: your computer, and your Claude Code working directory.</strong><br/>
-  Diagnoses, asks permission, then fixes it. Reversible. No telemetry.
-</p>
+<p align="center"><sub>The folder is a demo with planted clutter. Every finding is one the skill made on it in a real run.</sub></p>
 
-<p align="center">
-  <a href="#install"><img src="https://img.shields.io/badge/Claude_Code-Plugin-7FFFB0?style=flat-square&labelColor=050709" alt="Claude Code Plugin"/></a>
-  <a href="#what-janitor-actually-does"><img src="https://img.shields.io/badge/Platforms-macOS_%7C_Windows-7FFFB0?style=flat-square&labelColor=050709" alt="macOS and Windows"/></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-CDB06A?style=flat-square&labelColor=050709" alt="MIT License"/></a>
-  <a href="https://www.stratosagency.ai"><img src="https://img.shields.io/badge/by-Stratos_House_AI-F2F5F4?style=flat-square&labelColor=050709" alt="by Stratos House AI"/></a>
-</p>
+> **Machine feeling slow?** Just say so. Janitor works from plain words, so there is nothing to remember:
+>
+> ```text
+> my mac is slow
+> ```
+>
+> Or tidy the project you are in with `clean up this folder`, or call either skill by name with `/janitor-device` and `/janitor-claude`.
 
----
+## What it does
 
-It diagnoses what's wrong, tells you in plain English, asks your permission, then fixes it. No telemetry. No nagging. No menu bar icon that somehow uses 43% CPU to remind you your Mac is dirty.
+You describe the problem. Janitor gives Claude the catalogs, commands and rules to find the real cause and fix it safely.
 
-> 🧹 *"Janitor here. What are we cleaning up today?"*
-
-Janitor is a warm, cheerful, unfazed character who shows up when you call, tidies what needs tidying, then leaves cleanly. You can come back any time — Janitor doesn't mind the repeat visits. Part of the free Claude Code toolset from [Stratos House AI](https://www.stratosagency.ai).
-
----
-
-## What janitor actually does
-
-Janitor ships two skills. You install the plugin once, and both become available in any Claude Code session.
-
-### 🧹 `janitor-device` — cleans up your computer
-
-Tell Claude your machine feels slow, or that the fans won't stop, or that the battery is dying in two hours, and `janitor-device` will:
-
-1. **Diagnose** the machine with a handful of read-only shell commands (top CPU, top memory, load average, thermal state, disk space, battery health, launch agents, background services).
-2. **Identify the 3–5 specific background processes actually causing the slowdown** — not generic advice. Real names, real CPU percentages, real explanations for why they're misbehaving.
-3. **Present a plan** separated into three buckets:
-   - ✅ Things janitor can fix automatically (with your permission)
-   - 🔧 Things that need your password — handed to you as a plaintext copy-paste block you read before running
-   - 📋 Things you need to do manually (e.g. toggle a setting janitor can't touch)
-4. **Fix** only what you approved. Files go to Trash, disabled services get renamed to `.disabled`, everything is reversible.
-5. **Verify** the fix worked by re-running the diagnostics and showing you a before/after table.
-
-Works on **macOS and Windows**. Detects the OS automatically and loads the right villain catalog. Linux is planned for v0.2.
-
-### 🧹 `janitor-claude` — cleans up your Claude Code working directory
-
-Tell Claude that your repo is a mess, or that Claude keeps re-reading the same files, or that your `CLAUDE.md` is stale, and `janitor-claude` will:
-
-1. **Walk your current working directory read-only** — no writes, no git mutations, no surprises.
-2. **Identify the clutter** — missing or stale `CLAUDE.md`, orphaned scratchpad files from six weeks ago, oversized files in the read path wasting tokens on every turn, broken `[[wiki-links]]` in markdown, `.DS_Store` files, `__pycache__` directories, tracked build artifacts, and suspected secrets (reported as `file:line` only, never printed to chat).
-3. **Ask permission per fix** — nothing is ever auto-deleted. `.DS_Store` cleanup is one confirmation; everything else is per-item.
-4. **Fix** what you approved. Files go to Trash, never to `rm`. `CLAUDE.md` edits are shown as diffs before writing. Broken wiki-links are never silently rewritten.
-5. **Verify** with a before/after count table.
-
-Works on any Claude Code working directory — code repos, Obsidian vaults, docs folders, wherever.
-
----
-
-## What janitor doesn't do
-
-- **Doesn't run in the background.** It only does anything when you invoke it. No daemon, no scheduled scan, no "let me silently check in on your Mac every 6 hours."
-- **Doesn't phone home.** No telemetry, no analytics, no version checks, no auto-updates, no "anonymized usage statistics." Completely offline.
-- **Doesn't delete anything automatically.** Files go to Trash (macOS) or Recycle Bin (Windows). Config changes are reversible by renaming `.disabled` back. You can recover anything.
-- **Doesn't need your password silently.** Any command that needs `sudo` or admin is handed to you as a plaintext copy-paste block. You read it, you paste it. The skill never enters an elevated context on its own.
-- **Doesn't run destructive git.** Ever. No `git rm`, no `git commit`, no `git reset --hard`. Janitor reads git state; it doesn't change it.
-- **Doesn't cost $40/year.** Or $40. Or $4. It's MIT-licensed and free.
-
-The full non-negotiable safety rules are documented in [the "What it does NOT do" section below](#what-it-does-not-do) and enforced in the skill instructions themselves on every invocation. Read them before installing. (Healthy paranoia is welcome here.)
-
----
-
-## How to summon the skills
-
-You never have to remember commands. Describe your problem in plain English and the right skill auto-triggers from the phrasing.
-
-**For [`janitor-device`](plugins/janitor/skills/janitor-device/SKILL.md)**, any of these will do:
-> *"my mac is slow"* · *"my pc is laggy"* · *"clean up my laptop"* · *"fans won't shut up"* · *"why is my battery dying in two hours"* · *"my machine is overheating"* · `/janitor-device`
-
-**For [`janitor-claude`](plugins/janitor/skills/janitor-claude/SKILL.md)**, any of these will do:
-> *"clean up my session"* · *"audit my CLAUDE.md"* · *"find broken wiki-links"* · *"tidy this directory"* · *"Claude keeps re-reading the same files"* · *"this repo is a mess"* · `/janitor-claude`
-
-Both skills follow the same five-phase loop: **diagnose → identify villains → present and ask → fix → verify.** You're never surprised by what janitor did. Janitor is fluent in complaint — if you have a vague sense that something is wrong, describe the vague sense.
-
----
+- **Slow machines.** It reads CPU, memory, disk, battery and heat, then names the 3 to 5 processes actually to blame, with their real numbers.
+- **macOS, Windows and Linux.** It detects the system and loads only the catalog for it: macOS 26 and 27, Windows 11 25H2 and 26H2, and GNOME or KDE desktops on Linux, including WSL. Linux is new in 0.3.
+- **Disk hogs for developers.** Xcode build data and old simulators, Homebrew, npm, pnpm, yarn, uv and pip caches, and local AI model folders, with sizes shown before anything moves.
+- **Claude Code folders.** Caches, dead symlinks, stray scratch files, oversized files in Claude's read path and broken wiki links in a vault.
+- **Claude Code config.** Instruction files that overlap or run long, `@imports` that point nowhere, hooks and MCP servers whose commands are missing, skills with broken frontmatter, settings drift and stale worktrees.
+- **Secrets in the open.** Tracked `.env` files and likely keys, reported as `file:line` only. The value is never printed.
+- **A plan in three buckets.** What it can fix, what needs your password as a block you read and paste, and what only you can switch.
+- **A before and after.** It runs the same commands again and shows you the difference.
 
 ## Install
 
-### Recommended: marketplace install (CLI)
+In Claude Code:
+
+```text
+/plugin marketplace add ArshiaEcho/janitor
+/plugin install janitor@janitor
+```
+
+Or from a terminal:
 
 ```bash
-claude plugin marketplace add https://github.com/ArshiaEcho/janitor
-claude plugin install janitor
+claude plugin marketplace add ArshiaEcho/janitor
+claude plugin install janitor@janitor
 ```
 
-This registers janitor as a marketplace, then installs the plugin from it. Works in any Claude Code environment with the `claude plugin` CLI subcommand.
+Then quit Claude Code fully and open it again. Skills load when a session starts, so `/clear` is not enough. That one step is behind almost every "it does not show up" report.
 
-Then **fully quit and relaunch Claude Code.** Not `/clear`. Not `⌘R`. A full quit. Plugins are discovered at session start, and `/clear` doesn't count as a start. This is the single most common "it doesn't work" report, and it's always this.
+**Check it took:** `claude plugin list` should show `janitor@janitor`.
 
-### Interactive: `/plugin` from inside a Claude Code session
+**To hack on it,** clone the repo, then run `claude plugin marketplace add ./janitor` and install as above. Your edits apply on the next restart.
 
-If your Claude Code build supports the `/plugin` slash command (most recent builds do), you can also do it interactively:
+## Use it
 
-```
-/plugin marketplace add https://github.com/ArshiaEcho/janitor
-/plugin install janitor
-```
+Ask in your own words:
 
-Then fully quit and relaunch Claude Code.
-
-### Verify
-
-```bash
-claude plugin list
+```text
+my mac is slow
+my pc fans won't stop
+why is my laptop battery dying in two hours
+clean up this folder
+audit my CLAUDE.md
 ```
 
-You should see `janitor@janitor` in the list. If you don't, the install didn't take — see Troubleshooting below.
+Both skills run the same five steps: diagnose, name the villains, show the plan and ask, fix what you approved, verify.
 
-### For development (local clone, edits propagate)
+- **Nothing happens without a yes.** Cache clean-ups take one yes for the batch. Everything else is item by item.
+- **Your password stays yours.** Anything that needs `sudo` or admin is shown as plain text for you to run. Janitor never runs it.
+- **Your home folder is opt in.** `janitor-claude` only looks at `~/.claude` when you ask it to, and then reports sizes, never transcript contents.
 
-```bash
-git clone https://github.com/ArshiaEcho/janitor.git ~/Code/janitor
-claude plugin marketplace add ~/Code/janitor
-claude plugin install janitor
-```
+## The tools
 
-Now when you edit files in `~/Code/janitor`, they take effect on the next Claude Code restart. Use this if you want to hack on janitor itself.
+<table>
+  <tr>
+    <td width="33%"><img src="assets/logos/diagnose-tile.svg" width="56" alt=""><br><strong>Diagnose</strong><br>Read-only commands for CPU, memory, load, heat, disk, battery and startup items. Nothing changes while it looks.</td>
+    <td width="33%"><img src="assets/logos/villains-tile.svg" width="56" alt=""><br><strong>Villains</strong><br>Catalogs of the real culprits on macOS, Windows and Linux, ranked by how often they are to blame, each dated so stale entries show.</td>
+    <td width="33%"><img src="assets/logos/disk-tile.svg" width="56" alt=""><br><strong>Disk</strong><br>Developer caches, build data, old simulators and local model folders, sized first. Models never move without a yes for each one.</td>
+  </tr>
+  <tr>
+    <td><img src="assets/logos/memory-tile.svg" width="56" alt=""><br><strong>Memory files</strong><br>CLAUDE.md, CLAUDE.local.md, AGENTS.md and rules checked for overlap, length and imports that point nowhere. Edits are shown as a diff first.</td>
+    <td><img src="assets/logos/settings-tile.svg" width="56" alt=""><br><strong>Config</strong><br>Hooks, MCP servers, skills, agents and commands whose files are missing or malformed, and allow rules that pile up.</td>
+    <td><img src="assets/logos/clutter-tile.svg" width="56" alt=""><br><strong>Clutter</strong><br>.DS_Store, bytecode, tool caches, dead symlinks, scratch files, tracked build output and broken wiki links.</td>
+  </tr>
+  <tr>
+    <td><img src="assets/logos/trash-tile.svg" width="56" alt=""><br><strong>Trash, never rm</strong><br>Files go to the Trash or Recycle Bin. Startup items are renamed to <code>.disabled</code>. Everything comes back.</td>
+    <td><img src="assets/logos/password-tile.svg" width="56" alt=""><br><strong>Your password</strong><br>Admin steps arrive as a plain block you read and paste yourself. No base64, no <code>curl | bash</code>.</td>
+    <td><img src="assets/logos/verify-tile.svg" width="56" alt=""><br><strong>Verify</strong><br>The same commands run again, and a before and after table shows what changed.</td>
+  </tr>
+</table>
 
----
+## How it works
 
-## Quick start
+<div align="center"><img src="assets/flow.png" alt="You ask in plain words. Janitor detects Mac, Windows, Linux or a folder, runs read-only commands and names the villains. The plan has three buckets: what it can fix, what needs your password, and what only you can flip. You say yes item by item, and saying no changes nothing. Fixes go to the Trash or are renamed to .disabled, the same commands run again, and a before and after table closes the visit." width="100%"></div>
 
-**Fix a slow machine:**
-```
-> my mac is slow
-```
-or
-```
-> /janitor-device
-```
+Janitor is two skills and their reference files. `SKILL.md` holds the steps and the safety rules and loads on every run. The catalogs, fix blocks and audit patterns sit in `references/` and load only when needed, so a Windows machine never reads the macOS catalog. There is no app, no daemon and no binary. Claude runs ordinary shell commands you can read, and the skill tells it which ones.
 
-**Clean up a messy Claude session:**
-```
-> clean up this directory
-```
-or
-```
-> /janitor-claude
-```
+## What it never does
 
-Both skills diagnose first, show you a structured report, ask permission before changing anything, then verify the results. You never have to remember commands. You do have to read the sudo blocks before pasting them, but that's true of everything.
+Every line here is a rule in the skill itself, read on every run.
 
----
+- **No network.** No telemetry, no version checks, no analytics, no auto-updates. If you see it reach for the network, that is a bug.
+- **No deleting.** Trash and Recycle Bin only, through the system's own mechanisms. Never `rm`. Where only a tool's own clean command can free the space, such as `brew cleanup`, `xcrun simctl runtime delete` or `ollama rm`, it is handed to you as a block to run yourself.
+- **No silent sudo.** Anything elevated is a plain block for you to run.
+- **No git changes.** It reads `status`, `log`, `diff` and `worktree list`. It never commits, removes, resets, prunes or cleans.
+- **No silent edits to your instructions.** CLAUDE.md changes are shown as a diff first. Broken wiki links are reported, never rewritten.
+- **No reading your transcripts.** Session history under `~/.claude/projects` is sized, never opened.
+- **No printing secrets.** Likely keys are reported as `file:line`. If one is already in git history, it tells you to rotate it.
+- **No weakening your machine.** No SIP, Gatekeeper, Defender or boot changes, no kernel extensions, no renames of your files.
 
-## What it does NOT do
+## What it costs
 
-This section exists because you should be skeptical of any tool that asks for permission to touch your machine. Every line below is a hard rule, enforced in the skill instructions themselves — not in a "please be good" disclaimer, but as non-negotiable rules the skill reads on every invocation.
+Janitor is free and MIT licensed. It runs inside your Claude Code session, so its only cost is the tokens that session uses. It has no paid tier and no account.
 
-- **No network calls.** Janitor never connects to the internet. No telemetry, no version checks, no analytics, no GitHub API pings, no auto-updates, no "anonymized usage statistics to help us improve." Completely offline. If you see it reach for the network, that's a bug — please file an issue.
-- **No automatic deletion of your files.** Everything goes to Trash (macOS) or Recycle Bin (Windows) via OS-native mechanisms. You can recover anything that was moved. Yes, even the thing you're panicking about right now.
-- **No silent sudo or admin commands.** Anything that needs your password is shown to you as a plaintext copy-paste block. You read it, you paste it, you run it. The skill never enters an elevated context on its own. This is the most important rule in the whole plugin and it's the one most likely to matter if something goes wrong.
-- **No git mutations.** Janitor will never run `git rm`, `git commit`, `git push`, `git reset --hard`, `git branch -D`, `git clean`, or any state-changing git command. It reads `status`, `log`, `diff`, `branch -vv`. That's it. Your branches are safe, your uncommitted work is safe, your creative commit messages are safe.
-- **No `CLAUDE.md` edits without a diff.** Janitor will never silently rewrite your `CLAUDE.md`. If you have one, it audits for staleness and shows a diff before touching a single line. If you don't, it asks five questions and scaffolds one — still shown as a diff before writing.
-- **No obfuscated commands.** No base64, no `curl | bash`, no minified one-liners, no "just trust me and run this." Every command is plaintext and you can read it before execution. If you can't read shell, ask Claude what it does before pasting.
-- **No malware-adjacent behavior.** Janitor uses only documented OS APIs. No kernel extensions, no boot config edits, no SIP or Gatekeeper changes, no Windows Defender disables. Real malware would love it if you disabled Defender. Janitor is not going to help with that. Janitor would like Defender to continue defending, thank you.
-- **No wiki-link auto-rewrites.** Broken `[[links]]` in markdown are *reported*, never fixed silently. Forward-linking to a file you plan to create is a normal Obsidian workflow; janitor respects that instead of "helpfully" rewriting your notes while you sleep.
-- **No secret leaking.** The directory scan flags potential API keys by `file:line` only. It never prints the matched string to the conversation, so your transcript doesn't accidentally log the key you were trying to protect. (If a key is already in git history, janitor will tell you to rotate it and use `gitleaks`. Editing the current file does nothing because git remembers.)
-- **No rename operations.** Janitor won't rename your files even if you ask. Renames break wiki-links, break `git blame`, break Claude's memory of the repo, and break anything else that knew the old name. Out of scope on purpose.
-- **May read `.claude/sessions/` transcripts if present.** This is the one thing janitor *reads* that isn't obvious from the name. `janitor-claude` can use transcript content to infer which files Claude re-reads most often, which is useful for token-waste recommendations. If that's not something you want touched, delete or move `.claude/sessions/` before running the skill. Transcript content stays local — it's read, not uploaded.
-- **Fully open source.** Every line is in this repo. Read it before installing. Verify the commit hash if you're paranoid. (Healthy paranoia is welcome here.)
+## Honest limits
 
----
+- **The catalogs age.** Each one carries a "Last verified" date, now November 2026. A villain that mattered then may be fixed later, and a new one will take its place.
+- **It reads the machine, not the hardware.** A failing SSD, dust in the vents or a firmware bug will show as symptoms with no named villain. It says so when diagnostics come back clean.
+- **Managed work laptops push back.** IT-managed startup items may refuse to disable or raise alerts. Skip what you do not recognise.
+- **Large vaults are slow.** The broken-link audit walks every file once. Five thousand notes can take 30 seconds or more.
+- **Secret detection is a short, precise list.** It is not a substitute for `gitleaks`.
+- **Out of scope on purpose:** GPU and game stutter, servers over SSH, Docker images and volumes, slow builds, slow internet and code quality.
+- **Windows PowerShell 5.1 sees less.** PowerShell 7 or later gives the full read.
 
-## Troubleshooting
+## Not proven yet
 
-**"The skills don't appear in autocomplete after I installed them."**
-Fully quit Claude Code and relaunch it. Not `/clear`. Not `⌘R`. Cmd+Q, then reopen. Skills are discovered at session start — new ones don't appear mid-session. This is ~90% of all "it's broken" reports.
+- **Linux is new.** The catalog follows current GNOME, KDE, snap and Flatpak docs and bug trackers. No command in it has run on a real Linux machine yet.
+- **Windows changes have not run on Windows.** Some process names, such as the Widgets and Cross Device services, come from reports rather than Microsoft docs.
+- **Snap commands are from memory.** The official snapd docs needed a sign-in, so `snap refresh --hold` and the retain range are unconfirmed.
+- **A few macOS fixes rest on one source.** The `dasd` repair and the Spotlight loop are labelled as such in the catalog.
+- **Tested on one Mac, read-only.** Both skills were run headless on macOS against this branch: `janitor-claude` on the demo folder above, `janitor-device` on a real Mac with a nearly full disk. Both found the planted or real problems, kept git and tool cleanups for the user, and stopped for a yes. The fix step was not run.
+- **The new Claude Code checks are read from the docs.** They follow code.claude.com and the Claude Code changelog as of November 2026.
+- **Developer cache sizes are reported, not benchmarked.** Each tool's own clean command is offered where one exists. What each saves depends on your machine.
 
-**"I'm on Linux."**
-`janitor-device` currently supports macOS and Windows. Linux support is planned for v0.2, mostly because the Linux villain catalog is genuinely different (systemd services, snapd, tracker-miners, etc.) and deserves its own reference file rather than a half-hearted port. `janitor-claude` works fine on Linux today — it's filesystem-agnostic.
-
-**"I'm on a work laptop with MDM / corporate device management."**
-Be careful. Some of the things janitor wants to disable (OEM updaters, scheduled tasks, launch agents) may be managed by your IT team and will either refuse to disable or generate audit alerts. Run the skill, read the plan, and skip anything you don't recognize. When in doubt, ask IT before pasting a sudo block.
-
-**"It suggested something and I'm not sure."**
-Don't paste the block. Janitor's output is a recommendation, not a prescription. If anything feels wrong, say so — the skill is designed to explain its reasoning and back off on request.
-
-**"It didn't find anything but my machine is still slow."**
-Then the problem is probably not in janitor's villain catalog. Common culprits outside the catalog: a failing SSD, thermal throttling from dust in the vents, a BIOS/firmware issue, or a kernel panic loop. Janitor's `janitor-device` skill will tell you this explicitly if diagnostics come back clean — read its fallback section.
-
-**"`janitor-claude` took forever on my 5,000-file Obsidian vault."**
-This is a known limit. The broken-link audit builds an in-memory basename index once and processes all links against it, but the initial walk is still O(n) in vault size. A run on a large vault can take 30+ seconds. Not broken, just slow.
-
----
-
-## Known limitations
-
-Things janitor does *not* try to do, and probably shouldn't:
-
-- **No GPU or graphics diagnostics.** "My game stutters" is out of scope — janitor looks at CPU/memory/disk, not shaders.
-- **No server-side diagnosis.** If you SSH'd into a slow VPS and ran janitor, it'll detect the remote OS correctly but most of its villain catalog is desktop-flavored (launch agents, OEM bloat). Limited value on a headless server.
-- **No Docker or VM cleanup.** Containers, images, and volumes have their own cleanup ecosystem (`docker system prune`, etc.) and janitor doesn't get involved.
-- **No compile-time slowdowns.** "My Rust build takes 5 minutes" is a build-system problem, not a machine problem. Janitor won't help.
-- **No "my internet is slow" diagnosis.** Network is a whole other thing. Janitor stays on the machine.
-- **No code refactoring via `janitor-claude`.** It's about clutter, not code quality. It will not tell you your functions are too long. It has opinions but keeps them to itself.
-
----
-
-## The funny part
-
-The most popular paid Mac cleaner costs about $40/year and is itself frequently one of the worst slowdowns on the Macs of people who installed it specifically to make their Macs faster. It runs its own background daemons, its own menu bar helper, its own updater, and fights back aggressively when you try to kill it. It is the problem it claims to solve. It is a firefighter who started the fire, charged you for water, and then billed you monthly for a subscription to not-setting-more-fires.
-
-Janitor is free, open source, respawns nothing, does not register a launchd agent named `JanitorMenuHelper.HealthMonitor`, and will never interrupt your work with a popup asking you to renew. Janitor will also never tell you your Mac has "342 issues" when it has maybe three, and one of them is Janitor's competitor.
-
-A janitor built on top of a frontier AI model. The internet's most overqualified cleaning service. A system that can write a Shakespearean sonnet now also runs `find . -name .DS_Store` on your behalf. Your grandchildren will study this era and wonder what we were thinking. So do we, honestly. It's fine.
-
----
-
-## How it's built
-
-Two skills live under `skills/`, each following the same progressive-disclosure pattern:
-
-- `SKILL.md` is short and loaded on every invocation. It contains the workflow, the safety rules, and pointers.
-- `references/*.md` contain long-form content (villain catalogs, fix blocks, regexes) loaded only when needed — e.g., the macOS villain catalog is not loaded on a Windows machine, and vice versa.
-- `assets/*` contain static templates the skill offers to users.
-
-The cross-platform half of `janitor-device` detects the OS at the start of the workflow and routes to the right reference file. Mac and Windows share the philosophy, the phases, the report format, and the closing analogy — they only diverge at the command layer. You can read Mac first or Windows first; the structure is identical.
-
-The `janitor-claude` skill treats a messy Claude Code working directory the same way `janitor-device` treats a slow machine: same five-phase loop, session-flavored villains (missing `CLAUDE.md`, orphaned scratchpads, broken wiki-links) instead of machine ones.
-
-Villain catalogs carry a `last-verified` date in their frontmatter because the world changes — a villain that was a nightmare in 2026 might be fixed by 2028, and a new one will have taken its place. PRs to update the catalogs are the easiest path to a merged contribution.
-
----
+Report what you find. A new villain with a detection command, a reversible fix, the OS version and the CPU or memory it burned is the fastest path to a merged PR.
 
 ## Contributing
 
-Issues and PRs welcome. Every contribution must respect the non-negotiable rules:
+Issues and PRs are welcome, within the rules: no network, no deleting, no silent sudo, no git changes, no obfuscation, and no disabling Windows Defender.
 
-- No network calls.
-- No automatic deletion.
-- No silent sudo.
-- No git mutations.
-- No obfuscation.
-- No disabling Windows Defender. Seriously. Not even a little.
+The README images are made in code. `scripts/brand/` holds the logo generator, the Blender script for the chrome broom, the banner and flow diagram pages and the terminal GIF, all in the Altocue house style. `scripts/brand/build_assets.sh` rebuilds them.
 
-If you have a new villain to add — an OEM bloatware suite, a background service, a common Mac tool that ships with a misbehaving helper — open an issue with:
+## Licence
 
-1. A detection command (shows the villain exists and is misbehaving)
-2. A reversible fix recipe (disable, not delete; rename, not rm)
-3. The OS and version you saw it on
-4. Ideally, the CPU/memory percentage you saw it burn so future contributors can verify
+Janitor is [MIT](LICENSE). The Geist fonts in `scripts/brand/fonts` are under the SIL Open Font License.
 
-That's the fastest path to a merged PR.
-
----
-
-## License
-
-[MIT](LICENSE).
-
-## Acknowledgments
-
-- [Anthropic](https://www.anthropic.com/) / Claude Code for the plugin and skills system that makes any of this possible.
-- The `clean-your-mac` skill that this plugin's `janitor-device` half is built on top of.
-- Every `AdobeIPCBroker` process that has ever burned 104% CPU at 3 AM for no reason. You are the reason this plugin exists. You are also, somehow, still running.
+<div align="center"><br><a href="https://www.stratosagency.ai"><img src="assets/stratos-mark.png" width="32" alt=""></a><br><sub>A Stratos House product</sub></div>

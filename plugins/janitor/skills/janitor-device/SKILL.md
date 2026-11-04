@@ -1,11 +1,11 @@
 ---
 name: janitor-device
-description: Diagnose and fix slow Mac or Windows performance. Use this skill whenever the user says their computer, laptop, Mac, MacBook, PC, or Windows machine is slow, sluggish, laggy, freezing, stuttering, overheating, beachballing, hanging, or whenever the fans are spinning loudly. Also trigger when the user asks to "clean up", "speed up", "tune up", "optimize", "fix", "declutter", or "make faster" their computer or laptop. Trigger even for vague complaints like "why is my pc so slow", "why is my mac so slow", "my laptop is dying", "what's wrong with this thing", "my fans won't stop", "my battery drains in two hours", "my computer feels old". Handles both macOS and Windows automatically by detecting the OS first. Every action is reversible, permission-gated, and never leaves the local machine. No telemetry.
+description: Diagnose and fix slow Mac, Windows or Linux performance, and reclaim disk from developer caches. Use this skill whenever the user says their computer, laptop, Mac, MacBook, PC, Windows machine, Linux box, Ubuntu or Fedora install is slow, sluggish, laggy, freezing, stuttering, overheating, beachballing, hanging, or whenever the fans are spinning loudly. Also trigger when the user asks to "clean up", "speed up", "tune up", "optimize", "fix", "declutter", or "make faster" their computer or laptop. Trigger even for vague complaints like "why is my pc so slow", "why is my mac so slow", "my laptop is dying", "what's wrong with this thing", "my fans won't stop", "my battery drains in two hours", "my computer feels old", "my disk is full", "where did all my storage go", "Xcode is eating my disk". Handles macOS, Windows and Linux automatically by detecting the OS first. Every action is reversible, permission-gated, and never leaves the local machine. No telemetry.
 ---
 
 # janitor-device
 
-A guided speed audit and cleanup for macOS and Windows. Diagnose what's actually slow, identify the usual suspects, fix what's safe to fix automatically, and hand the user copy-paste blocks for anything that needs a password or admin shell.
+A guided speed audit and cleanup for macOS, Windows and Linux. Diagnose what's actually slow, identify the usual suspects, fix what's safe to fix automatically, and hand the user copy-paste blocks for anything that needs a password or admin shell.
 
 ## How to use this
 
@@ -16,17 +16,21 @@ You don't need to remember any commands. The skill triggers automatically when y
 > "clean up my laptop please"
 > "why are my fans spinning so much"
 > "my battery drains in two hours"
+> "ubuntu got sluggish after the upgrade"
+> "my disk is full and I don't know why"
 > "/janitor-device"
 
-Claude runs diagnostics, shows you what's wrong in plain language, asks permission, then fixes what it can automatically and gives you copy-paste blocks for anything that needs a password. Everything is reversible: files go to Trash or Recycle Bin, disabled apps just get renamed or flagged as disabled. You can undo any of it.
+Claude runs diagnostics, shows you what's wrong in plain language, asks permission, then fixes what it can automatically and gives you copy-paste blocks for anything that needs a password. Everything is reversible: files go to Trash or Recycle Bin, disabled apps just get renamed, masked or flagged as disabled. You can undo any of it.
 
 ## Philosophy
 
 Most "my computer is slow" complaints come down to **3-5 specific villains**, not real hardware decline. A modern M-series Mac or a 2021+ Windows laptop should feel new for years. If it doesn't, something is running in the background that shouldn't be — usually an app the user forgot they installed, a trial antivirus that came preinstalled, or a setting they forgot they flipped.
 
-Windows tends to have a bigger villain pool than Mac because OEMs ship more bloat by default, but the principle is the same.
+Windows tends to have a bigger villain pool than Mac because OEMs ship more bloat by default. Linux has fewer villains, but the ones it has (file indexers, snap refreshes, software-center loops) are stubborn. The principle is the same everywhere.
 
-This skill **diagnoses first, asks permission second, fixes third**. Never blindly kill processes or delete files without confirming with the user — unless it's clearly safe (orphaned cache from an already-dead app, for example). The user's trust matters more than speed.
+On developer machines the biggest modern win is often **disk, not CPU**: Xcode build output, simulator runtimes, package-manager caches and local AI models quietly eat tens or hundreds of GB. Janitor measures those too, and treats models with extra care.
+
+This skill **diagnoses first, asks permission second, fixes third**. Never blindly kill processes or delete files without confirming with the user — unless it's clearly safe and reversible (moving orphaned cache from an already-dead app to the Trash, for example). The user's trust matters more than speed.
 
 ---
 
@@ -85,7 +89,15 @@ uname -s 2>/dev/null || ver
 
 - Output contains `Darwin` → macOS. Load `references/macos-villains.md` and (when fixing) `references/fix-blocks-mac.md`.
 - Output contains `Windows` or `Microsoft Windows` → Windows. Load `references/windows-villains.md` and (when fixing) `references/fix-blocks-windows.md`.
-- Output contains `Linux` → not yet supported in v0.1. Tell the user politely: "janitor-device currently supports macOS and Windows. Linux support is planned for v0.2." Stop.
+- Output contains `Linux` → Linux. Load `references/linux-villains.md` and (when fixing) `references/fix-blocks-linux.md`. Then read the distro and check for WSL:
+
+  ```bash
+  grep -E '^(PRETTY_NAME|ID|VERSION_ID)=' /etc/os-release
+  grep -qi microsoft /proc/version && echo "WSL"
+  echo "$XDG_CURRENT_DESKTOP"
+  ```
+
+  If it prints `WSL`, this is Linux inside Windows. Tell the user the slowness they feel is almost certainly on the Windows side, offer to run the Windows checks from PowerShell instead, and only use the Linux catalog for the WSL distro's own disk hogs. `XDG_CURRENT_DESKTOP` tells you GNOME vs KDE, which decides LocalSearch vs Baloo.
 
 Do not assume the OS from the user's prompt phrasing — always detect, because users sometimes describe the wrong thing.
 
@@ -126,7 +138,7 @@ sw_vers
 system_profiler SPPowerDataType 2>/dev/null | grep -A1 -E "Cycle Count|Condition|Maximum Capacity"
 ```
 
-For the extended macOS diagnostics (launch agents, cache hogs, Downloads bloat, Spotlight state, orphaned Playwright sessions), load `references/macos-villains.md`.
+For the extended macOS diagnostics (post-upgrade settling, Spotlight and Photos analysis, Apple Intelligence disk use, launch agents, cache hogs, Downloads bloat, orphaned Playwright sessions), load `references/macos-villains.md`.
 
 ### Windows core diagnostics (PowerShell 7+)
 
@@ -146,9 +158,12 @@ Get-PSDrive -PSProvider FileSystem | Select-Object Name, Used, Free
 # Power plan
 powercfg /getactivescheme
 
-# Hardware info
+# Hardware info and Windows version (24H2 Home/Pro is out of updates as of Oct 2026)
 Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer, Model, TotalPhysicalMemory
-[System.Environment]::OSVersion
+(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').DisplayVersion
+
+# Copilot+ PC on-device AI host (several instances = models preloading)
+Get-Process WorkloadsSessionHost -ErrorAction SilentlyContinue | Measure-Object WorkingSet -Sum
 
 # Running services + scheduled task counts
 (Get-Service | Where-Object Status -eq 'Running').Count
@@ -163,11 +178,70 @@ Get-Service WSearch
 
 For the extended Windows diagnostics and the full villain catalog, load `references/windows-villains.md`.
 
+### Linux core diagnostics (all read-only, no sudo)
+
+```bash
+# Top CPU and memory consumers
+ps -eo pid,pcpu,pmem,comm --sort=-pcpu | head -15
+ps -eo pid,pcpu,pmem,comm --sort=-pmem | head -15
+
+# Load average, core count, uptime
+uptime; nproc
+
+# Memory: read the "available" column; PSI shows real pressure
+free -h
+cat /proc/pressure/memory 2>/dev/null
+swapon --show
+
+# Disk space, and whether the system disk is a spinning drive (ROTA 1)
+df -h / /home /boot 2>/dev/null
+lsblk -d -o NAME,ROTA,SIZE,MODEL
+
+# OS, kernel, hardware
+grep PRETTY_NAME /etc/os-release; uname -r
+cat /sys/class/dmi/id/product_name 2>/dev/null
+
+# Power profile (Linux's Low Power Mode) and battery
+powerprofilesctl get 2>/dev/null
+cat /sys/class/power_supply/BAT*/capacity 2>/dev/null
+
+# What systemd is running, and what's broken
+systemctl --user list-units --type=service --state=running --no-pager
+systemctl list-units --type=service --state=running --no-pager --no-legend | wc -l
+systemctl --failed --no-pager; systemctl --user --failed --no-pager
+
+# Log size, snap and flatpak state (commands that don't exist just print nothing)
+journalctl --disk-usage
+snap changes 2>/dev/null | tail -5
+snap list --all 2>/dev/null | awk '/disabled/' | wc -l
+flatpak list --runtime 2>/dev/null | wc -l
+
+# Indexers
+localsearch status 2>/dev/null | head -5
+balooctl6 status 2>/dev/null | head -5
+```
+
+For the villain catalog and how to read these numbers (available vs free memory, PSI, zram on Fedora), load `references/linux-villains.md`.
+
+### Developer disk-hog sweep (all OSes, read-only)
+
+Run this when the user is a developer (Xcode, Homebrew, Node, Python, `ollama` or similar are present) or disk is tight (under ~15% free). It's a set of `du -sh` / `Get-ChildItem` size checks on known cache and model locations, plus each tool's own `cache dir` command. The per-OS tables live in the **Developer disk hogs** section of each villain catalog. Present the results as one size-sorted table.
+
+Ground rules for this sweep, every OS:
+- **Caches** (npm, pnpm, Yarn, pip, uv, Homebrew, NuGet): the tool's own documented clean command, handed to the user as a block.
+- **Build output** (Xcode DerivedData, old DeviceSupport folders): reversible move to Trash / Recycle Bin, which Janitor may do itself after a yes.
+- **Simulators and runtimes**: `xcrun simctl delete unavailable` and `xcrun simctl runtime delete <id>` are user-run blocks, one runtime at a time.
+- **AI models** (Hugging Face, Ollama, LM Studio): report sizes only. Never move or delete a model without a separate yes for that specific model.
+- **`node_modules` in inactive projects**: report only, never touched.
+- **Docker**: out of scope. Say so in one line; don't measure or clean it.
+
 ### What the numbers mean
 
 macOS-specific interpretation (compressor pages, load average convergence, thermal state, Low Power Mode) is in `references/macos-villains.md`.
 
-Windows-specific interpretation (`FreePhysicalMemory` ratios, service count red flags, OEM clusters) is in `references/windows-villains.md`.
+Windows-specific interpretation (`FreePhysicalMemory` ratios, service count red flags, OEM clusters, the Copilot+ AI host) is in `references/windows-villains.md`.
+
+Linux-specific interpretation (available memory, PSI, load average with disk wait, zram) is in `references/linux-villains.md`.
 
 ---
 
@@ -175,8 +249,9 @@ Windows-specific interpretation (`FreePhysicalMemory` ratios, service count red 
 
 After diagnosing, match findings against the villain list for the detected OS. The full catalogs live in:
 
-- `references/macos-villains.md` — Tier 1: Adobe CC, CleanMyMac/MacPaw, Low Power Mode. Tier 2: iCloud churn, Discord, Chrome, Downloads bloat, bloatware family, orphaned Playwright. Tier 3: launchd orphans, unused browsers, cache hogs.
-- `references/windows-villains.md` — Tier 1: OEM bloatware (HP/Dell/Lenovo/ASUS/Acer), McAfee/Norton trial bloat, fake "PC optimizers", OneDrive sync churn, Teams background, Windows Search over-indexing, OEM driver updaters, Xbox Game Bar. Tier 2: Edge background tasks, Cortana, "free VPN" bundles, Discord, Chrome tabs, Downloads bloat. Tier 3: orphaned scheduled tasks, stale Defender exclusions.
+- `references/macos-villains.md` — Tier 1: post-upgrade settling (macOS 26/27), Adobe CC, CleanMyMac/MacPaw, Low Power Mode. Tier 2: stuck Spotlight, Photos analysis, WindowServer + Liquid Glass, Apple Intelligence disk use, Time Machine, iCloud churn, Discord, Chrome, Downloads bloat, bloatware family, orphaned Playwright. Tier 3: `dasd` on 27.0.x, launchd orphans, unused browsers, cache hogs. Plus Developer disk hogs.
+- `references/windows-villains.md` — Tier 1: OEM bloatware, McAfee/Norton trial bloat, fake "PC optimizers", the Copilot+ AI host (`WorkloadsSessionHost`), OneDrive sync churn, Teams background, Windows Search over-indexing, OEM driver updaters, Xbox Game Bar. Tier 2: Edge background tasks, Copilot app auto-start, Phone Link / Cross Device Service, Widgets, "free VPN" bundles, Discord, Chrome tabs, Downloads bloat. Tier 3: orphaned scheduled tasks, stale Defender exclusions. Plus Developer disk hogs.
+- `references/linux-villains.md` — Tier 1: GNOME LocalSearch (Tracker), snapd churn, software-center refresh loops, KDE Baloo, power-saver profile. Tier 2: browsers/Electron, GNOME Shell extensions, journald size, old kernels, unused Flatpak runtimes, package caches, Downloads bloat, orphaned Playwright. Tier 3: failed units, `kswapd0`, transient updaters, spinning disks. Plus Developer disk hogs.
 
 Load the catalog for the detected OS. Match the diagnostic output against the tiers top-down and pick the 3-5 most likely culprits.
 
@@ -187,7 +262,7 @@ Load the catalog for the detected OS. Match the diagnostic output against the ti
 Show a **structured report** like this:
 
 ```
-## What's slowing your [Mac / PC]
+## What's slowing your [Mac / PC / Linux machine]
 
 1. **[Top villain name]** — [CPU/memory impact, one-line explanation]
 2. **[Second villain]** — [same]
@@ -211,7 +286,7 @@ Use the ✅ / ⚠️ / 🔧 icons consistently if you want visual markers for au
 
 **Always wait for user confirmation before making changes.** If the user said "do it all" or "just fix it", you can proceed with automatic fixes and include manual steps in the same turn, but still clearly distinguish "I did this" from "you do this."
 
-On Windows, "needs your password" means "needs an admin PowerShell" — give the user the exact right-click-Terminal-Admin steps if they're not familiar.
+On Windows, "needs your password" means "needs an admin PowerShell" — give the user the exact right-click-Terminal-Admin steps if they're not familiar. On Linux it means a `sudo` block they paste into their own terminal.
 
 ---
 
@@ -220,17 +295,19 @@ On Windows, "needs your password" means "needs an admin PowerShell" — give the
 Load the fix-blocks file for the detected OS:
 - macOS → `references/fix-blocks-mac.md`
 - Windows → `references/fix-blocks-windows.md`
+- Linux → `references/fix-blocks-linux.md`
 
-### Core rules (both OSes)
+### Core rules (all OSes)
 
-1. **Disable watchdogs BEFORE killing processes.** Adobe, McAfee, CleanMyMac, McAfee, HP, Dell, Lenovo all have respawners. Disable the launch agent / scheduled task / Run key / service FIRST, then kill. Otherwise the process comes right back.
-2. **Use reversible disables, not deletes.** On Mac, rename `plist` to `plist.disabled`. On Windows, `Disable-ScheduledTask` and `Set-Service -StartupType Disabled`, or rename the registry Run key value to `<name>.disabled`. Everything here is reversible by renaming back or re-enabling.
-3. **All elevated commands are copy-paste blocks.** The skill never runs `sudo` or enters an admin PowerShell itself. Give the user the block, let them inspect it, let them paste it.
-4. **All deletions go through Trash or Recycle Bin.** macOS: `mv <file> ~/.Trash/`. Windows: `Shell.Application` COM object → Recycle Bin. Never `rm -rf` or `Remove-Item -Force -Recurse` on user files.
+1. **Disable watchdogs BEFORE killing processes.** Adobe, McAfee, CleanMyMac, HP, Dell, Lenovo all have respawners, and on Linux systemd will happily restart what you kill. Disable the launch agent / scheduled task / Run key / service / systemd unit FIRST, then kill. Otherwise the process comes right back.
+2. **Use reversible disables, not deletes.** On Mac, rename `plist` to `plist.disabled`. On Windows, `Disable-ScheduledTask` and `Set-Service -StartupType Disabled`, or rename the registry Run key value to `<name>.disabled`. On Linux, `systemctl --user mask` (undo with `unmask`) or rename the autostart `.desktop` file to `.desktop.disabled`. Everything here is reversible by renaming back or re-enabling.
+3. **All elevated commands are copy-paste blocks.** The skill never runs `sudo` (macOS or Linux) or enters an admin PowerShell itself. Give the user the block, let them inspect it, let them paste it.
+4. **All deletions go through Trash or Recycle Bin.** macOS: `mv <file> ~/.Trash/`. Windows: `Shell.Application` COM object → Recycle Bin. Linux: `gio trash <file>`. Never `rm -rf` or `Remove-Item -Force -Recurse` on user files.
+5. **Caches are cleaned by their own tool, models only one at a time.** Package-manager caches get the tool's documented clean command as a user block. AI models are listed with sizes and removed only with a yes for each named model.
 
 ### Specific fixes
 
-The full copy-paste blocks for the Adobe permanent kill, the CleanMyMac nuke sequence, the McAfee/Norton uninstall, the OEM bloatware removal, and the OneDrive pause-don't-unlink rule all live in the fix-blocks reference files.
+The full copy-paste blocks for the Adobe permanent kill, the CleanMyMac nuke sequence, the McAfee/Norton uninstall, the OEM bloatware removal, the OneDrive pause-don't-unlink rule, the LocalSearch/Baloo/snapd calming blocks, and every Developer disk hog block all live in the fix-blocks reference files.
 
 ---
 
@@ -243,6 +320,7 @@ Run the same core commands from Phase 1. You want to see:
 - On Mac: load averages dropping and converging (1-min / 5-min / 15-min within 10% of each other)
 - On Mac: `Pages free` increasing, `Pages occupied by compressor` decreasing
 - On Windows: free physical memory increasing, scheduled task count lower
+- On Linux: available memory up, memory PSI near 0, load average converging, no indexer or snapd still pinned
 - Every villain identified in Phase 2 is at 0% or gone
 
 ### The before/after table
@@ -252,6 +330,8 @@ Load `references/metric-mapping.md` for the canonical rules. In short:
 - Always include shared rows (top CPU process, top memory process, disk free, total processes).
 - Include Mac-only rows (memory compressor, Low Power Mode, thermal state) only on Mac.
 - Include Windows-only rows (power plan, services running, Windows Search state) only on Windows.
+- Include Linux-only rows (available memory, memory PSI, power profile, journal size) only on Linux. Load average appears on Mac and Linux.
+- Include `Dev caches (sum)` only when the developer sweep ran.
 - Include dynamic villain-specific rows (`Adobe CPU (sum)`, `McAfee CPU (sum)`) based on what was found.
 - Never emit "N/A" — omit the row entirely.
 
@@ -284,8 +364,8 @@ Framings to riff on (pick one or invent something better):
 1. **Always diagnose before acting.** Never start killing processes without showing the user what's wrong first.
 2. **Always ask permission before making changes** — unless the user said "do it all" or equivalent.
 3. **Never touch files or apps you can't identify.** If something is ambiguous, show it and ask.
-4. **Never `rm -rf`** (macOS) or `Remove-Item -Force -Recurse` (Windows) on user files. Allowed only for clearly-orphaned residue of an already-trashed app, and even then gated on user confirmation.
-5. **Never run sudo or enter an admin PowerShell silently.** Always give the user a copy-paste block they can inspect.
+4. **Never `rm -rf`** (macOS, Linux) or `Remove-Item -Force -Recurse` (Windows) on user files. No exceptions: even residue of an already-trashed app goes to Trash / Recycle Bin, after the user has seen the list.
+5. **Never run sudo (macOS, Linux) or enter an admin PowerShell silently.** Always give the user a copy-paste block they can inspect.
 6. **Never delete browser caches** without warning — browsing will be slow for a day while they rebuild. Usually not worth it.
 7. **Don't force a reboot.** Suggest it, let the user decide when.
 8. **Respect the auto-fixable vs. manual distinction.** The user needs to know exactly who did what.
@@ -301,11 +381,18 @@ Framings to riff on (pick one or invent something better):
 - Never edit HKLM values without showing the user the exact key path first.
 - Never run `.reg` files dropped to disk. All registry edits use inline `Set-ItemProperty` / `New-ItemProperty` / `Rename-ItemProperty`.
 
+### Linux-specific forbidden actions
+- Never disable SELinux or AppArmor.
+- Never edit GRUB / systemd-boot config or the kernel command line, and never remove the running kernel.
+- Never `apt purge` / `dnf remove` desktop or indexer packages that drag the desktop along with them, and never `chmod -x` system binaries.
+
 ### Universal forbidden actions
 - **No network calls** of any kind. No `curl`, `wget`, `Invoke-WebRequest`, `Invoke-RestMethod`. Janitor is offline-only.
 - **No telemetry**, anonymized or otherwise.
 - **No obfuscated commands**. No base64, no `curl | bash`, no `IEX (New-Object Net.WebClient).DownloadString(...)`, no minified one-liners.
 - **No script files dropped to disk.** No `.sh` or `.ps1` written and then executed. Inline commands only.
+- **No third-party debloat or "remove the AI" tools.** On any OS. They tend to modify protected system assets or block updates.
+- **Docker is out of scope.** Janitor doesn't measure or clean Docker images, volumes or disk images.
 
 ---
 
@@ -315,6 +402,12 @@ Framings to riff on (pick one or invent something better):
 - zsh errors on empty globs (`/path/*pattern*` with no matches → exit 1). Use `2>/dev/null` or wrap in a tolerant function.
 - `pgrep` on macOS does NOT support `-E` (extended regex). Use multiple `pgrep` calls instead.
 - `find` + `mv` can fail mid-traversal when a parent directory is moved out from under it. Run a second pass or use `-exec` instead.
+
+**Linux:**
+- `ps` truncates process names to 15 characters (`localsearch-ext`, `baloo_file_extr`). Use `ps -eo pid,pcpu,args` when a name looks cut off.
+- `systemctl --user` needs the desktop session's bus. Over plain SSH it fails with "Failed to connect to bus"; ask the user to run it in a terminal inside their desktop.
+- Read memory by `available`, never `free`. Linux fills idle RAM with cache on purpose.
+- The same app can be installed as a snap, a Flatpak and a native package at once. Check all three before saying something isn't installed.
 
 **Windows:**
 - PowerShell ExecutionPolicy can block `.ps1` files — but janitor uses only inline commands, so this shouldn't apply. If it does, something is wrong.
@@ -328,9 +421,10 @@ Framings to riff on (pick one or invent something better):
 
 If diagnostics come back clean but the user still feels slowness:
 
-1. Check `uptime` (Mac) or `(Get-CimInstance Win32_OperatingSystem).LastBootUpTime` (Windows) — has the machine been up for weeks without a reboot? Suggest a restart.
-2. Ask about recent OS updates — sometimes the first 24 hours after a major update are slow while indexing catches up (Spotlight on Mac, Windows Search on Windows).
+1. Check `uptime` (Mac, Linux) or `(Get-CimInstance Win32_OperatingSystem).LastBootUpTime` (Windows) — has the machine been up for weeks without a reboot? Suggest a restart.
+2. Ask about recent OS updates — sometimes the first 24 hours after a major update are slow while indexing catches up (Spotlight and Photos analysis on Mac, Windows Search on Windows, LocalSearch or Baloo on Linux). On macOS 26/27 give it up to ~72 hours before calling anything a villain.
 3. Ask about new apps installed recently.
 4. On a laptop: check battery health / power thermal state. Slowness can be thermal even when CPU looks fine.
-5. On Windows: check if the disk is a mechanical HDD (common on budget 2020-2022 laptops). If so, gently tell the user that an SSD upgrade would do more than anything janitor can.
+5. On Windows or Linux: check if the disk is a mechanical HDD (Linux: `lsblk -d -o NAME,ROTA` shows `1`) (common on budget 2020-2022 laptops). If so, gently tell the user that an SSD upgrade would do more than anything janitor can.
 6. On Mac: if nothing else fits, consider an SMC reset or Apple Diagnostics (`D` at boot on Intel, hold power on Apple Silicon).
+7. On a developer machine where speed is fine but the disk keeps filling: run the developer disk-hog sweep from Phase 1.
