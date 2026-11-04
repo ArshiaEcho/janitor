@@ -1,11 +1,13 @@
 ---
 name: janitor-claude
-description: Audit and clean up a Claude Code working directory or Obsidian vault. Use this skill when the user asks to "clean up my session", "clean this directory", "tidy this up", "audit my CLAUDE.md", "is my CLAUDE.md stale", "scaffold a CLAUDE.md", "find broken wiki-links", "find dead files", "find orphaned notes", "what's wasting tokens in this repo", "what's slowing Claude down in here", "clean up this vault", "find cruft", "find .DS_Store files", "find stale branches", or "/janitor-claude". Also trigger for vague complaints like "this directory is a mess", "my vault is full of broken links", "Claude keeps re-reading the same files", "my CLAUDE.md is out of date". Every mutation requires explicit user confirmation. Read-only diagnostics by default. Never rewrites files, never runs destructive git, never touches .git/ internals. No telemetry, no network calls.
+description: Audit and clean up a Claude Code working directory or Obsidian vault. Use this skill when the user asks to "clean up my session", "clean this directory", "tidy this up", "audit my CLAUDE.md", "is my CLAUDE.md stale", "scaffold a CLAUDE.md", "find broken wiki-links", "find dead files", "find orphaned notes", "what's wasting tokens in this repo", "what's slowing Claude down in here", "clean up this vault", "find cruft", "find .DS_Store files", "find stale branches", "clean up my .claude folder", "audit my settings.json", "why is this hook not running", "check my MCP servers", "are my skills broken", "clean up old worktrees", "how much space is ~/.claude using", or "/janitor-claude". Also trigger for vague complaints like "this directory is a mess", "my vault is full of broken links", "Claude keeps re-reading the same files", "my CLAUDE.md is out of date". Every mutation requires explicit user confirmation. Read-only diagnostics by default. Never rewrites files, never runs destructive git, never touches .git/ internals, never reads session transcripts. No telemetry, no network calls.
 ---
 
 # janitor-claude
 
-A read-first audit of the current working directory. Finds clutter, broken links, stale `CLAUDE.md` facts, and token-wasting patterns — then asks the user per-fix before doing anything.
+A read-first audit of the current working directory. Finds clutter, broken links, stale or overlapping instruction files (`CLAUDE.md`, `AGENTS.md`, `CLAUDE.local.md`, `.claude/rules/`), broken Claude Code config (settings, hooks, `.mcp.json`, skills, agents), stale worktrees, and token-wasting patterns — then asks the user per-fix before doing anything. On request it also measures user-level `~/.claude` weight.
+
+**Last verified:** 2026-11, against code.claude.com/docs (memory, settings, permissions, hooks, mcp, skills, sub-agents, worktrees, claude-directory, plugins/loading, costs) and the Claude Code changelog through v2.1.318. Paths and limits cited here come from those pages; re-verify before changing them.
 
 ## How to use this
 
@@ -69,7 +71,7 @@ Match the sign-off to the situation. If nothing needed fixing, the closer should
 
 ## The workflow, in five phases
 
-1. **Diagnose** — walk the directory read-only, check git state, audit markdown, inspect CLAUDE.md, measure file sizes.
+1. **Diagnose** — walk the directory read-only, check git state, audit markdown, inspect instruction files and `.claude/` config, measure file sizes.
 2. **Identify villains** — match findings against the session villain catalog.
 3. **Present and ask** — show a structured report with specific counts and file paths, get per-fix permission.
 4. **Fix** — only after explicit confirmation. Move-to-Trash for files, show diffs for any CLAUDE.md edits, never auto-rewrite a wiki-link.
@@ -95,6 +97,7 @@ git status --short 2>/dev/null | head -30
 git log --oneline -10 2>/dev/null
 git branch -vv 2>/dev/null | head -20
 git worktree list 2>/dev/null
+git worktree list --porcelain 2>/dev/null | grep -E "^(worktree|prunable)"
 
 # Obvious cruft counts (excluding known big directories)
 find . -name ".DS_Store" -type f \
@@ -127,18 +130,39 @@ find . -type f -size +500k \
   ! -path "./build/*" 2>/dev/null | head -20
 ```
 
-### CLAUDE.md state
+### Instruction files and `.claude/` config
 
 ```bash
-# Does it exist?
-test -f CLAUDE.md && wc -l CLAUDE.md || echo "CLAUDE.md: missing"
+# Instruction files Claude Code loads (line counts; 200 is the docs' target)
+for f in CLAUDE.md .claude/CLAUDE.md CLAUDE.local.md AGENTS.md .claude/AGENTS.md; do
+  test -f "$f" && printf "%6s lines  %s\n" "$(wc -l < "$f")" "$f"
+done
+test -f CLAUDE.md -o -f .claude/CLAUDE.md || echo "no CLAUDE.md"
 
-# Is it huge?
-test -f CLAUDE.md && ls -lh CLAUDE.md
+# Nested instruction files (load on demand) and rules
+find . -mindepth 2 -maxdepth 4 \( -name CLAUDE.md -o -name CLAUDE.local.md -o -name AGENTS.md \) -type f \
+  ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./.claude/worktrees/*" 2>/dev/null
+find .claude/rules -name "*.md" -type f 2>/dev/null
 
-# Sub-repos might have their own CLAUDE.md
-find . -maxdepth 3 -name "CLAUDE.md" -type f 2>/dev/null
+# Claude Code project config present?
+ls -la .claude 2>/dev/null
+ls .mcp.json .claude/settings.json .claude/settings.local.json .worktreeinclude 2>/dev/null
+find .claude/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null
+find .claude/agents .claude/commands -name "*.md" -type f 2>/dev/null | head -50
+find .claude/worktrees -mindepth 1 -maxdepth 1 -type d 2>/dev/null
+
+# Personal files that should not be tracked
+git ls-files CLAUDE.local.md .claude/settings.local.json 2>/dev/null
+
+# Other AI tools' folders (report only)
+ls -d .cursor .cursorrules .windsurf .windsurfrules .clinerules .devin .codex .github/copilot-instructions.md GEMINI.md 2>/dev/null
 ```
+
+If any of `.claude/settings*.json`, `.mcp.json`, skills, agents, or rules exist, **Read them with the Read tool** and check them against the "Claude Code configuration hygiene" tier in `references/session-villains.md` (invalid JSON, one-off allow piles, path rules for missing paths, hooks whose scripts are missing, MCP commands not on PATH, skill frontmatter not on line 1 or descriptions over 1,536 characters, agents missing `name`/`description`, skill/command name collisions, `@imports` and `paths:` globs that resolve to nothing). Never print `env` values or MCP `headers`; name the key only.
+
+### User-level `~/.claude` (opt-in only)
+
+Skip unless the user asked about `~/.claude`, Claude's own disk use, transcripts, or plugin cache. When they do, run the measurements in Tier 4 of `references/session-villains.md`: `du` sizes and file counts only. **Never open transcript `.jsonl` files** and never touch `projects/<project>/memory/` (auto memory).
 
 ### Project type fingerprint (for CLAUDE.md auto-detection later)
 
@@ -175,9 +199,11 @@ If the count is non-trivial, load `references/markdown-audit-patterns.md` and ru
 ### Full villain catalog pointer
 
 For the ranked villain catalog and all detection rules, load `references/session-villains.md`. That file covers:
-- Tier 1: `.DS_Store`, Python cruft, dead symlinks, missing `CLAUDE.md`
-- Tier 2: orphaned scratchpads, oversized files, broken wiki-links, stale `CLAUDE.md`, tracked build artifacts, stale git worktrees
+- Tier 1: `.DS_Store`, Python cruft, dead symlinks, missing project instructions
+- Tier 2: orphaned scratchpads, oversized files, broken wiki-links, stale `CLAUDE.md`, tracked build artifacts, stale git worktrees (including `.claude/worktrees/`)
+- Tier 2b: Claude Code config — overlapping or oversized instruction files, `AGENTS.md` shadowed by `CLAUDE.md`, missing `@import` targets, dead `paths:` rules, settings drift, missing hook scripts, broken `.mcp.json` commands, broken skill frontmatter, duplicate agents/commands, other AI tools' folders
 - Tier 3: orphaned markdown, stale front-matter dates, stale branches, suspected secrets, oversized `.git/`
+- Tier 4 (opt-in): `~/.claude` transcripts, plugin cache versions, shell snapshots, legacy folders
 
 ---
 
@@ -185,11 +211,12 @@ For the ranked villain catalog and all detection rules, load `references/session
 
 Match the diagnostic output against `references/session-villains.md`. Pick the 3-5 most impactful findings. Prioritization order:
 
-1. **Missing or obviously stale `CLAUDE.md`** — biggest per-session token cost.
+1. **Missing, stale, oversized, or overlapping instruction files** — biggest per-session token cost.
 2. **Oversized files in the read path** — next biggest cost.
-3. **Broken wiki-links** (if this is a vault) — affects the user's navigation.
-4. **Build artifacts tracked in git** — low per-session cost, high long-term risk.
-5. **Orphaned scratchpads and cruft** — smallest impact but highest "feels cleaner" return.
+3. **Silent config failures** — hooks whose script is missing (a typo'd safety hook never ran), MCP servers that fail every start, agents skipped for bad frontmatter, `AGENTS.md` being ignored.
+4. **Broken wiki-links** (if this is a vault) — affects the user's navigation.
+5. **Build artifacts tracked in git** — low per-session cost, high long-term risk.
+6. **Orphaned scratchpads, cruft, stale worktrees** — smallest impact but highest "feels cleaner" return.
 
 Ignore findings with no recommendation attached. A clean directory should produce a short report, not a padded one.
 
@@ -279,6 +306,12 @@ find . -maxdepth 4 -type d \
   -exec mv {} ~/.Trash/ \; 2>/dev/null
 ```
 
+**Claude Code config fixes** (`settings*.json`, `.mcp.json`, hook entries, skill/agent frontmatter, rules): **report-first, diff-gated.** Show the exact JSON or YAML change as a unified diff, wait for "apply", edit only those lines. Never reformat the whole file, never sort keys, never remove a rule the user didn't name. For permission rules, also tell the user `/permissions` shows every rule and its source file, so they can prune there instead.
+
+**Stale worktrees** (report-only): give the user the commands, never run them. `git worktree prune --dry-run` then `git worktree prune` for entries whose folder is gone; `git worktree remove <path>` for a clean one they no longer need. If git says a worktree is locked, a Claude Code session may still be using it. Offer adding `.claude/worktrees/` to `.gitignore` (diff-gated) if it isn't ignored.
+
+**`~/.claude` weight** (report-only): Claude Code already deletes most of it after `cleanupPeriodDays` (default 30). Tell the user the sizes, what the sweep covers, and the built-ins: `claude purge <path> --dry-run` to preview removing one project's transcripts and auto memory (the real run asks `[y/N]` and cannot be undone), `/plugin` to uninstall plugins, and the `cleanupPeriodDays` setting (diff-gated edit). Janitor never deletes Claude Code's application data itself.
+
 **Committed `.env` files** (report-only, never auto-fix): a tracked `.env` is a credential leak, not cruft. Report the path, **never print its contents**, and hand the user the `git rm --cached` + `.gitignore` + rotate-credentials steps. The secret is already in git history — editing the file does nothing. See the "Committed `.env`" villain in `references/session-villains.md`.
 
 **Orphaned scratchpad handling** (per-item):
@@ -361,11 +394,13 @@ Framings to riff on (pick one, adapt to what was found, or invent something bett
 
 1. **Read-only by default.** No mutations until Phase 4, and only after explicit permission.
 2. **No `rm` / `rm -rf` / `Remove-Item -Force -Recurse` on user files.** All deletions go to Trash / Recycle Bin.
-3. **No destructive git.** No `git add`, `git rm`, `git commit`, `git push`, `git reset`, `git branch -D`, `git clean`, `git stash`, `git checkout .`, `git restore .`. Read-only git only.
+3. **No destructive git.** No `git add`, `git rm`, `git commit`, `git push`, `git reset`, `git branch -D`, `git clean`, `git stash`, `git checkout .`, `git restore .`, `git worktree remove`, `git worktree prune`, `git worktree unlock`. Read-only git only.
 4. **No `.git/` modifications, ever.**
 5. **Never overwrite `CLAUDE.md`.** Edit specific lines in audit mode, generate from scratch only if the file doesn't exist.
 6. **Never auto-rewrite a broken wiki-link.** Per-link confirmation always.
-7. **Never print suspected secret contents.** `file:line` only. Never paste the match into chat.
+7. **Never print suspected secret contents.** `file:line` only. Never paste the match into chat. The same goes for `env` blocks in settings files and MCP `env` / `headers`: name the key, never the value.
+7a. **Never read session transcripts.** `~/.claude/projects/**/*.jsonl` and their `subagents/` and `tool-results/` folders are plaintext copies of everything that passed through a tool. Sizes and counts only, unless the user asks about one specific session. Never touch auto memory (`projects/<project>/memory/`), `.credentials.json`, `agent-memory/`, `~/.claude.json`, or `~/.claude/plugins/`.
+7b. **Never run Claude Code's own mutating commands for the user.** No `claude purge`, `claude mcp add/remove`, `claude plugin uninstall`, `claude mcp reset-project-choices`. Hand over the command.
 8. **Never rename files.** Renames break links, break `git blame`, and break Claude's memory. Out of scope.
 9. **Never "refactor" anything.** Janitor is about clutter, not code quality.
 10. **Never recommend installing new tooling.** No "you should use pre-commit." Clean what's here, don't push dependencies.
@@ -392,7 +427,13 @@ Framings to riff on (pick one, adapt to what was found, or invent something bett
 
 **Large vaults are slow.** A broken-link audit on a 5,000-file Obsidian vault can take 30+ seconds. Build the basename index once, cache it for the run, and process all links against the single in-memory index. Don't re-glob for each link.
 
-**`.claude/sessions/` may or may not exist.** If it does, you can read transcripts to infer which files Claude re-reads most often (useful for token-waste recommendations). If it doesn't, skip that recommendation source without error.
+**Transcripts live in `~/.claude/projects/<project>/`, not in the repo.** `~/.claude/sessions/` only holds one small file per running session. Don't mine transcripts for "most re-read files"; for that, point the user at `/context` (what's in the window now) and, on subscription plans, `/usage` (usage attributed to skills, subagents, plugins and MCP servers, with recommendations).
+
+**`.claude/worktrees/` is a second checkout.** Each folder there is a full copy of the repo, and each has its own `CLAUDE.md`, `.DS_Store`s and caches. Always exclude `./.claude/worktrees/*` from `find` passes or every count doubles.
+
+**`settings.local.json` may live at the repo root's `.claude/`, not the cwd's.** Since v2.1.211 Claude Code reads and writes it at the git repository root (and the main checkout's root when in a worktree). An older copy in a subdirectory still loads too. Check both.
+
+**`CLAUDE_CONFIG_DIR` moves `~/.claude`.** If it is set, every user-level path (and `~/.claude.json`) lives under it. `CLAUDE_CODE_PLUGIN_CACHE_DIR` moves the plugins root.
 
 ---
 
@@ -400,6 +441,6 @@ Framings to riff on (pick one, adapt to what was found, or invent something bett
 
 If diagnostics come back clean:
 
-1. Tell the user the directory looks healthy. Name the specific signals: "no `.DS_Store` files, no oversized files in the read path, `CLAUDE.md` is present and its commands all resolve, no broken wiki-links."
-2. Offer one optional audit they might want anyway: "Want me to check for stale branches / old worktrees / suspected secrets?" Only suggest things janitor can actually check.
+1. Tell the user the directory looks healthy. Name the specific signals: "no `.DS_Store` files, no oversized files in the read path, `CLAUDE.md` is present, under 200 lines, and its commands and imports all resolve, hooks and MCP commands all exist, no broken wiki-links."
+2. Offer one optional audit they might want anyway: "Want me to check for stale branches / old worktrees / suspected secrets / how much space `~/.claude` is using?" Only suggest things janitor can actually check.
 3. Do not pad the report with fake findings. Do not recommend reorganization. A clean directory produces a three-line report and that's correct behavior.

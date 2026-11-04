@@ -2,6 +2,8 @@
 
 Load this file when janitor-claude is either (a) going to offer to create a new `CLAUDE.md` for a directory that doesn't have one, or (b) going to audit an existing `CLAUDE.md` for staleness. These are two related but distinct flows. Do not conflate them.
 
+**Last verified:** 2026-11 (code.claude.com/docs/en/memory; changelog through v2.1.318).
+
 **The single most important rule in this file: never overwrite an existing `CLAUDE.md`.** If one exists, even if it's half-written or stale, switch to staleness-audit mode. The user wrote it. Never replace it wholesale.
 
 ---
@@ -12,11 +14,14 @@ Load this file when janitor-claude is either (a) going to offer to create a new 
 
 All of these must be true before offering to scaffold:
 
-- No `CLAUDE.md` exists at the repo root.
+- No `CLAUDE.md` exists at the repo root **or** at `.claude/CLAUDE.md` (Claude Code accepts either location).
+- **If an `AGENTS.md` exists and there is no `CLAUDE.md`:** Claude Code (v2.1.277+) already reads it as the project instructions. Don't scaffold a second copy. Offer the staleness audit on `AGENTS.md` instead, and only scaffold a `CLAUDE.md` if the user wants Claude-specific additions; in that case its first line is `@AGENTS.md` and the scaffold holds only what `AGENTS.md` doesn't say.
 - The directory is "non-trivial" — it has a `.git/` directory, AND at least 5 source files (not counting config / lockfiles / generated files), AND is not a pure scratch folder.
 - The user has accepted the offer explicitly. **Never scaffold without being asked.** Offering is fine; generating-without-yes is not.
 
 If any of these fail, don't scaffold. For an empty folder or a one-file scratch directory, a `CLAUDE.md` is overhead with no payoff.
+
+Claude Code ships its own generator, `/init`, which analyses the codebase and (when a `CLAUDE.md` already exists) suggests improvements instead of overwriting. It's fine to mention it as an alternative. Janitor's flow differs in two ways: it asks the five questions that `/init` can't answer from code, and it never writes without a diff and an explicit yes.
 
 ### The auto-detection step (before asking the user)
 
@@ -41,6 +46,10 @@ test -f justfile && cat justfile | head -40
 
 # What's in .gitignore (tells you what NOT to read)
 test -f .gitignore && cat .gitignore
+
+# Instructions already written for other tools (don't duplicate them; offer @AGENTS.md instead)
+ls AGENTS.md .claude/AGENTS.md .cursorrules .windsurfrules .clinerules 2>/dev/null
+ls -d .cursor/rules .windsurf/rules .devin/rules .claude/rules 2>/dev/null
 
 # Directory shape
 find . -maxdepth 2 -type d \
@@ -96,13 +105,21 @@ Every generated `CLAUDE.md` should have these sections, in this order:
 5. **Don't read / don't edit** (from question 2 + `.gitignore` + standard build dirs)
 6. **Files Claude should know about** (from question 4)
 
+Put things where they cost least, and tell the user why:
+
+- **Personal preferences** (sandbox URLs, "I like terse answers") go in `CLAUDE.local.md`, which loads alongside `CLAUDE.md` and must be gitignored. Offer the `.gitignore` line. Note: a `CLAUDE.local.md` makes Claude Code stop reading `AGENTS.md` by default.
+- **Multi-step procedures** (release steps, migration runbooks) go in a skill, which loads only when used. Mention it; don't create the skill.
+- **Rules for one part of the tree** ("API handlers must validate input") fit `.claude/rules/<topic>.md` with a `paths:` frontmatter list, which loads only when Claude touches matching files. Mention it; don't create the file.
+- **Hard "never do X" rules** belong in `permissions.deny` or a hook: `CLAUDE.md` is guidance Claude reads, not something Claude Code enforces. Say so in one line if the user's answer to question 2 is really a security boundary.
+
 Do **not** add these without being asked:
 
 - Contributing guide stubs
 - License boilerplate
 - "About the team" sections
 - "Future roadmap" sections
-- Anything longer than 100 lines total — if the draft is longer, trim it. A 400-line `CLAUDE.md` is itself a token-waste problem.
+- Anything longer than 100 lines total — if the draft is longer, trim it. The docs target under 200 lines per file; janitor aims for half that so the user has room to grow it. `@imports` don't help: imported files load with the file that imports them.
+- The template's HTML comment block. Strip it before showing the draft; it is notes for janitor, not for Claude.
 
 ---
 
@@ -125,6 +142,12 @@ Parse the existing file, extract claims, and cross-check each claim against curr
 | "Don't read" list | For every path, check it still exists (stale entries for deleted directories are harmless but noise) | `CLAUDE.md` lists `legacy/` as don't-read but `legacy/` was deleted 6 months ago |
 | Named conventions (tabs vs spaces, etc.) | Sample a handful of files, check compliance | `CLAUDE.md` says "use tabs" but 90% of files use spaces |
 | External dependencies named | Check `package.json` / `requirements.txt` / etc. | `CLAUDE.md` says "we use Firebase" but `package.json` has `@supabase/supabase-js` |
+| `@path` imports | Resolve each relative to the importing file (not the cwd), `~/` from home; skip ones inside backticks or code fences; `test -e` | `@docs/git-workflow.md` but `docs/` was renamed to `handbook/` |
+| `.claude/rules/*.md` `paths:` globs | Check each glob matches at least one tracked file | `paths: ["src/api/**/*.ts"]` after the move to `apps/api/` |
+| Overlap with `AGENTS.md`, nested `CLAUDE.md`, or `~/.claude/CLAUDE.md` | Look for repeated paragraphs and opposite instructions | Root says "use pnpm", `packages/web/CLAUDE.md` says "use npm" |
+| Instructions written for older models | Look for shouting ("YOU MUST", "CRITICAL" on every line) and long role-play preambles | Not wrong, just costly; flag as low confidence |
+
+Claude Code has a built-in read-only version of this audit: `/doctor prompt-audit` (v2.1.283+) checks CLAUDE.md, CLAUDE.local.md, AGENTS.md, rules, skills, commands, subagents and output styles for outdated or conflicting content, and changes nothing until asked. Mention it when the user wants a second opinion.
 
 ### Reporting format
 
@@ -183,7 +206,9 @@ For a full scaffold where the original file is empty, just show the full propose
 
 - **Never overwrites an existing file wholesale.** Edit specific lines or switch to audit mode.
 - **Never writes without an explicit "write it" / "yes" / "apply" response.** Ambiguous responses get a re-ask.
-- **Never writes to `CLAUDE.md` in a parent directory** unless the user explicitly named that file. A `CLAUDE.md` inside a sub-repo is scoped to that sub-repo.
+- **Never writes to `CLAUDE.md` in a parent directory** unless the user explicitly named that file. Claude Code loads every `CLAUDE.md` from the working directory up to the filesystem root, so a parent file affects every repo below it. A `CLAUDE.md` inside a sub-repo is scoped to that sub-repo.
+- **Never edits `AGENTS.md` to suit Claude.** Other tools read it too. Claude-specific lines go in a `CLAUDE.md` that imports it.
+- **Never touches `~/.claude/CLAUDE.md`** unless the user named it. It applies to every project.
 - **Never generates a `CLAUDE.md` over 100 lines.** If the auto-detected content plus user answers push past 100, trim — `CLAUDE.md` loaded on every prompt; every line costs tokens.
 - **Never copies content from another project's `CLAUDE.md`.** Every file is written from this repo's current state. No templates-from-memory.
 - **Never commits the file.** Write it to disk, tell the user "I wrote it, review it with `git diff CLAUDE.md` and commit when you're happy." Janitor does not run `git add` or `git commit`.

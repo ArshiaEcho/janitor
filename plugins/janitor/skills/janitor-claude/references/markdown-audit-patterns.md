@@ -1,5 +1,7 @@
 # Markdown link audit patterns
 
+**Last verified:** 2026-11 (Claude Code `@import` rules from code.claude.com/docs/en/memory).
+
 Load this file when janitor-claude needs to audit wiki-links and markdown links inside a directory. This file is the source of truth for the regex patterns, resolution rules, and reporting format.
 
 **The single most important rule in this file: never auto-rewrite a broken link.** Always report with options, let the user decide. Forward-linking (pointing at a page that doesn't exist yet) is a legitimate Obsidian pattern — the user may be intentionally linking to something they haven't written yet.
@@ -55,6 +57,19 @@ Capture groups:
 ```
 
 This captures `[text](path/to/file.md)` or `[text](./path/to/file.md "title")`, ignoring URLs and anchor-only links. Adjust the extension set if the project uses `.mdx`.
+
+### Claude Code `@imports` (instruction files only)
+
+Only in `CLAUDE.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`, `AGENTS.md`, and `.claude/rules/*.md`. Claude Code expands `@path` tokens in these files into context. Rules (from the memory docs):
+
+- Relative paths resolve from the **directory of the file containing the import**, not the working directory. `~/` resolves from home. Absolute paths are allowed.
+- Imports nest up to **four hops**.
+- Tokens inside backtick code spans and fenced code blocks are **not** imports.
+- A path containing spaces needs a backslash before each space (`@Design\ Docs/api.md`). A quoted path is not imported at all. Flag quoted `@"..."` paths as "won't import" even if the file exists.
+
+Pragmatic regex (apply outside code spans/fences, then filter): `(?<![\w`])@((?:~/|/|\.{1,2}/)?[^\s`@]+(?:\\ [^\s`@]+)*)`. Drop matches that are clearly not paths: emails (preceded by a word char, already excluded), npm scopes like `@types/node` that don't exist on disk **and** have no file extension, and social handles. When in doubt, report as "possible import" rather than "broken".
+
+Report format and fix rules are the same as for broken links below: per-import, never auto-rewrite.
 
 ---
 

@@ -1,6 +1,6 @@
 # macOS fix blocks
 
-**Last verified:** 2026-04 — update this date when you revise the fix recipes. macOS internals change between major versions; a fix that worked on macOS 14 may need adjustment on macOS 16.
+**Last verified:** 2026-11 — update this date when you revise the fix recipes. Checked against macOS 26 Tahoe and macOS 27. macOS internals change between major versions; re-check launchd labels and paths after each one.
 
 Load this file when the user has approved fixes on a Mac. Every sudo block is given to the user as plaintext — they paste it themselves. The skill never runs sudo directly.
 
@@ -89,7 +89,7 @@ sudo mv /Library/LaunchDaemons/com.adobe.agsservice.plist{,.disabled}
 
 ## The full CleanMyMac / MacPaw nuke sequence
 
-CleanMyMac registers its services dynamically, so the removal order matters. This block is reversible up to step 2 (empty the Trash to commit).
+CleanMyMac registers its services dynamically, so the removal order matters. Every step is reversible until the user empties the Trash.
 
 ```bash
 # 1. Boot out all 4 labels (handles both CleanMyMac X/4 and CleanMyMac 5)
@@ -104,10 +104,14 @@ mv "/Applications/CleanMyMac_5.app" ~/.Trash/ 2>/dev/null
 # 3. Kill any remaining processes
 pkill -9 -f "macpaw.CleanMyMac" 2>/dev/null
 
-# 4. Delete residue (prefs, caches, logs, HTTP cookies)
-# Only after confirming the apps are in Trash. This step is not reversible.
-find ~/Library \( -iname "*macpaw*" -o -iname "*cleanmymac*" \) -exec rm -rf {} + 2>/dev/null
+# 4. Residue (prefs, caches, logs, HTTP cookies): LIST it first, show the user
+find ~/Library -maxdepth 3 \( -iname "*macpaw*" -o -iname "*cleanmymac*" \) -print 2>/dev/null
+
+# 5. After a yes, move each listed item to Trash (recoverable until Trash is emptied)
+mv "<path from the list>" ~/.Trash/
 ```
+
+Do not batch step 5 with `find -exec`. Moving a parent folder out from under `find` mid-traversal makes it error, and the user should see each path go.
 
 ---
 
@@ -148,10 +152,132 @@ Common nuke-on-sight patterns:
 
 ---
 
+## Spotlight rebuild (macOS 26 / 27, only after ~72h of `mds_stores` / `corespotlightd` pinned)
+
+Read-only check first:
+```bash
+mdutil -sa
+```
+
+Give this block to the user. It erases and rebuilds the Spotlight index for the startup disk. No files are touched; search results are incomplete for a few hours while it rebuilds, and CPU will be high during that time (that's expected).
+```bash
+sudo mdutil -E /
+```
+
+Gentler alternative with no terminal: System Settings → Spotlight → Search Privacy, add big folders that don't need searching (dev folders, a video archive drive).
+
+---
+
+## Liquid Glass / WindowServer (GUI only, all reversible)
+
+You do these manually:
+1. System Settings → Accessibility → Display → turn on **Reduce Transparency** (biggest single win)
+2. Same pane → **Reduce Motion** (optional)
+3. macOS 26.1+: System Settings → Appearance → choose the **Tinted** Liquid Glass style
+4. Update Electron apps (Slack, Discord, VS Code, Notion, etc.). Builds from before October 2025 had a GPU slowdown bug on Tahoe
+
+Turn any of these back off the same way.
+
+---
+
+## `dasd` pinned for days (macOS 27.0.x, last resort)
+
+Only after: the latest macOS point release is installed, a restart didn't help, and `dasd` is still at 90%+ for 24 hours.
+
+```bash
+# Confirm first
+ps -axo pid,%cpu,etime,command | grep '[d]asd'
+```
+
+Single-source workaround (OSXDaily, October 2026): reset the PowerLog background-processing database. Janitor's version **renames instead of deleting**, so it is reversible. Give the user this block, then they restart when convenient:
+
+```bash
+D=/private/var/db/powerlog/Library/PerfPowerTelemetry/BackgroundProcessing
+sudo mv "$D/CurrentBackgroundProcessingDB.BGSQL" "$D/CurrentBackgroundProcessingDB.BGSQL.disabled"
+sudo mv "$D/CurrentBackgroundProcessingDB.BGSQL-wal" "$D/CurrentBackgroundProcessingDB.BGSQL-wal.disabled"
+sudo mv "$D/CurrentBackgroundProcessingDB.BGSQL-shm" "$D/CurrentBackgroundProcessingDB.BGSQL-shm.disabled"
+```
+
+To undo: rename the `.disabled` files back (after moving aside any new files macOS created). This is outside `/System`, so SIP is not involved. Tell the user plainly it's a community workaround, not an Apple fix, and that a Time Machine backup first is wise.
+
+---
+
+## Developer disk hogs (macOS)
+
+Measure first with the read-only commands in `macos-villains.md`, show the size table, get a yes per row.
+
+### Skill may do these itself after a yes (reversible moves to Trash)
+
+```bash
+# Quit Xcode first. DerivedData is build output; Xcode rebuilds it on next build.
+mv ~/Library/Developer/Xcode/DerivedData ~/.Trash/DerivedData-$(date +%Y%m%d-%H%M)
+
+# Old DeviceSupport folders: list, then move the versions the user no longer has devices on
+ls ~/Library/Developer/Xcode/iOS\ DeviceSupport/
+mv ~/Library/Developer/Xcode/iOS\ DeviceSupport/<old version folder> ~/.Trash/
+```
+
+Never touch `~/Library/Developer/Xcode/Archives` without the user naming the exact archive; those are needed to symbolicate crash reports for shipped builds.
+
+### User-run blocks (each tool's own documented clean command)
+
+```bash
+# Simulators whose runtime is no longer installed (device records only)
+xcrun simctl delete unavailable
+
+# Simulator runtimes: list, then delete ONE the user picked (frees several GB each)
+xcrun simctl runtime list
+xcrun simctl runtime delete <runtime identifier from the list>
+
+# Homebrew: dry run first, then clean old versions and the download cache
+brew cleanup -n
+brew cleanup --prune=all
+
+# npm
+npm cache verify
+npm cache clean --force
+
+# pnpm (only packages no project references)
+pnpm store prune
+
+# Yarn 1
+yarn cache clean
+
+# pip
+pip cache purge
+
+# uv (prune is the safe one; clean empties everything)
+uv cache prune
+uv cache clean
+```
+
+Close Xcode and Simulator before deleting runtimes. If `simctl runtime delete` says no matching runtime but the disk space is still gone, it's an orphan Apple's tools can't see; if it's under `/System/Library/AssetsV2` it's SIP-protected. Report it and stop.
+
+### AI models — per-item yes, never bulk
+
+```bash
+# Ollama
+ollama list
+ollama rm <model:tag>
+
+# Hugging Face hub cache: list, dry-run, then one repo at a time
+hf cache ls
+hf cache rm <repo-id> --dry-run
+hf cache rm <repo-id>
+```
+
+LM Studio: My Models tab → model menu → Delete. Older Hugging Face installs have `huggingface-cli scan-cache` / `delete-cache` instead of `hf cache`; check `hf cache --help` first.
+
+### `node_modules` — report only. Docker — out of scope.
+
+Show inactive projects with sizes and let the user handle them. For Docker, one line: "Docker's disk image, images and build cache are Docker's to manage; Janitor doesn't touch them."
+
+---
+
 ## Quirks to know about
 
 **zsh errors on empty globs.** `/path/*pattern*` that matches nothing will return exit code 1 with "no matches found", which can cancel sibling parallel tool calls. Either use `2>/dev/null`, check the exit code, or wrap in a shell function that tolerates empty matches.
 
-**`find` + `mv` or `find` + `rm` can fail mid-traversal** when a parent directory is moved out from under the iteration. If the first pass errors on some items, run a second pass or, for known-safe garbage like app residue after the app is already trashed, use `find ... -exec rm -rf {} +`.
+**`find` + `mv` or `find` + `rm` can fail mid-traversal** when a parent directory is moved out from under the iteration. If the first pass errors on some items, list first with `find ... -print`, then move each path to `~/.Trash/` individually. Janitor never uses `rm -rf` on user files, residue included.
 
 **Sudo should never run silently.** Give the user a block to paste themselves. Trust is more important than speed.
