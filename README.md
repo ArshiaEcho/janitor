@@ -17,7 +17,7 @@
 
 <div align="center"><img src="assets/terminal.gif" alt="A janitor-claude pass over a demo folder: it lists caches, a dead symlink, a missing CLAUDE.md import, a hook and an MCP server pointing at missing files, a skill with no frontmatter and a tracked .env file, then moves the 8 cache items to the Trash on a yes" width="100%"></div>
 
-<p align="center"><sub>The folder is a demo with planted clutter. Every finding came from the skill's own read-only commands on it.</sub></p>
+<p align="center"><sub>The folder is a demo with planted clutter. Every finding is one the skill made on it in a real run.</sub></p>
 
 > **Machine feeling slow?** Just say so. Janitor works from plain words, so there is nothing to remember:
 >
